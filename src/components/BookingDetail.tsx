@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Send } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { SendOfferDialog } from "@/components/SendOfferDialog";
 
 interface BookingDetailProps {
   bookingId: string;
@@ -23,6 +25,9 @@ const STATUS_OPTIONS = [
 ];
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const { data: booking, refetch } = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: async () => {
@@ -36,7 +41,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
-  const { data: messages } = useQuery({
+  const { data: messages, refetch: refetchMessages } = useQuery({
     queryKey: ["booking_messages", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -62,6 +67,12 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     }
   };
 
+  const handleOfferSent = () => {
+    refetch();
+    refetchMessages();
+    queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+  };
+
   if (!booking) return <div className="p-8 text-center text-muted-foreground">Caricamento...</div>;
 
   return (
@@ -78,6 +89,10 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
+        <Button onClick={() => setSendDialogOpen(true)} disabled={!booking.email}>
+          <Send className="mr-2 h-4 w-4" />
+          Invia Offerta
+        </Button>
         <StatusBadge status={booking.status} />
         <Select value={booking.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-48">
@@ -205,6 +220,13 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
           </Card>
         </div>
       </div>
+
+      <SendOfferDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        booking={booking}
+        onSent={handleOfferSent}
+      />
     </div>
   );
 }
