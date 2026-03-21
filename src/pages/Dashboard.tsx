@@ -55,8 +55,31 @@ export default function Dashboard() {
   const handleFetchEmails = async () => {
     setFetchingEmails(true);
     try {
-      // Will invoke the edge function when implemented
-      toast.info("Funzionalità di importazione email sarà disponibile dopo la configurazione IMAP.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Devi essere autenticato");
+        return;
+      }
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-emails`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Errore durante l'importazione");
+      } else {
+        toast.success(result.message || `Importate ${result.imported} email`);
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+      }
+    } catch (e) {
+      toast.error("Errore di connessione");
     } finally {
       setFetchingEmails(false);
     }
