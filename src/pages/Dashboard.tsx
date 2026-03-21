@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [fetchingEmails, setFetchingEmails] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: bookings, isLoading, refetch } = useQuery({
     queryKey: ["booking_requests", activeTab],
