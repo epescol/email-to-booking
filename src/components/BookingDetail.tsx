@@ -67,7 +67,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
         .from("booking_messages")
         .select("*")
         .eq("request_id", bookingId)
-        .order("sent_at", { ascending: true });
+        .order("sent_at", { ascending: false });
       if (error) throw error;
       return data;
     },
