@@ -145,9 +145,11 @@ export default function Templates() {
             </Card>
           ))}
         </div>
+      )}
 
-        {/* Preview dialog */}
-        <Dialog open={!!previewId} onOpenChange={(open) => !open && setPreviewId(null)}>
+      {/* Preview dialog */}
+      {templates && (
+        <Dialog open={!!previewId} onOpenChange={(open) => { if (!open) setPreviewId(null); }}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Anteprima: {templates.find(t => t.id === previewId)?.name}</DialogTitle>
