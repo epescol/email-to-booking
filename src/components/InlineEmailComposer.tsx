@@ -164,9 +164,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const { data: hotelData } = useQuery({
     queryKey: ["hotel_pricing_mode_composer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, pricing_mode").limit(1).single();
+      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, room_card_template").limit(1).single();
       if (error) throw error;
-      return data;
+      return data as { id: string; pricing_mode: string; room_card_template: string | null };
     },
   });
   const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
