@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +46,6 @@ serve(async (req) => {
       );
     }
 
-    // Get profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("hotel_id")
@@ -61,7 +59,6 @@ serve(async (req) => {
       });
     }
 
-    // Get booking
     const { data: booking } = await supabase
       .from("booking_requests")
       .select("*")
@@ -83,7 +80,6 @@ serve(async (req) => {
       });
     }
 
-    // Get SMTP settings
     const { data: settings } = await supabase
       .from("hotel_email_settings")
       .select("*")
@@ -98,47 +94,21 @@ serve(async (req) => {
     }
 
     const xHotelRequestId = `${booking_id}`;
-
-    // Extract domain from sender email for EHLO
     const senderDomain = settings.smtp_user.split("@")[1] || settings.smtp_host;
 
-    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port || 587}, EHLO domain: ${senderDomain}`);
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: settings.smtp_host,
-        port: settings.smtp_port || 587,
-        tls: settings.smtp_port === 465,
-        auth: {
-          username: settings.smtp_user,
-          password: settings.smtp_password,
-        },
-      },
-      pool: {
-        size: 1,
-        timeout: 30000,
-      },
-      client: {
-        name: senderDomain,
-      },
+    await sendSmtpEmail({
+      host: settings.smtp_host,
+      port: settings.smtp_port || 587,
+      username: settings.smtp_user,
+      password: settings.smtp_password,
+      from: settings.smtp_user,
+      to: booking.email,
+      subject,
+      body,
+      xHotelRequestId,
+      ehloDomain: senderDomain,
     });
 
-    try {
-      await client.send({
-        from: settings.smtp_user,
-        to: booking.email,
-        subject: subject,
-        content: body,
-        headers: {
-          "X-Hotel-Request-ID": xHotelRequestId,
-        },
-      });
-      console.log("Email sent successfully");
-    } finally {
-      await client.close();
-    }
-
-    // Save message to booking_messages
     await supabase.from("booking_messages").insert({
       request_id: booking_id,
       direction: "outbound",
@@ -148,7 +118,6 @@ serve(async (req) => {
       sent_at: new Date().toISOString(),
     });
 
-    // Update booking status to offerta_inviata if it's still nuova
     if (booking.status === "nuova") {
       await supabase
         .from("booking_requests")
@@ -168,3 +137,140 @@ serve(async (req) => {
     );
   }
 });
+
+// ---- SMTP send via raw TCP/TLS ----
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  from: string;
+  to: string;
+  subject: string;
+  body: string;
+  xHotelRequestId: string;
+  ehloDomain: string;
+}
+
+async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let conn: Deno.TlsConn | Deno.TcpConn;
+
+  if (config.port === 465) {
+    conn = await Deno.connectTls({ hostname: config.host, port: config.port });
+  } else {
+    conn = await Deno.connect({ hostname: config.host, port: config.port });
+  }
+
+  async function readResp(): Promise<string> {
+    const buf = new Uint8Array(4096);
+    let result = "";
+    const maxAttempts = 20;
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      attempts++;
+      const n = await conn.read(buf);
+      if (n === null) break;
+      result += decoder.decode(buf.subarray(0, n));
+      const lines = result.split("\r\n").filter(Boolean);
+      const lastLine = lines[lines.length - 1] || "";
+      // Final line has "CODE SP" (not "CODE-")
+      if (/^\d{3} /.test(lastLine)) break;
+    }
+    return result;
+  }
+
+  async function sendCmd(cmd: string): Promise<string> {
+    await conn.write(encoder.encode(cmd + "\r\n"));
+    return await readResp();
+  }
+
+  function checkResp(resp: string, expectedCode: string, context: string) {
+    if (!resp.startsWith(expectedCode) && !resp.includes(`${expectedCode} `) && !resp.includes(`${expectedCode}-`)) {
+      throw new Error(`SMTP ${context} fallito: ${resp.trim()}`);
+    }
+  }
+
+  try {
+    // Read greeting
+    const greeting = await readResp();
+    console.log("SMTP greeting:", greeting.trim());
+
+    // EHLO with sender domain (NOT localhost)
+    const ehloResp = await sendCmd(`EHLO ${config.ehloDomain}`);
+    console.log("EHLO response:", ehloResp.substring(0, 200));
+
+    // STARTTLS if port 587
+    if (config.port === 587 && ehloResp.includes("STARTTLS")) {
+      const starttlsResp = await sendCmd("STARTTLS");
+      checkResp(starttlsResp, "220", "STARTTLS");
+      conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: config.host });
+      // Re-EHLO after STARTTLS
+      await sendCmd(`EHLO ${config.ehloDomain}`);
+    }
+
+    // AUTH LOGIN
+    const authStartResp = await sendCmd("AUTH LOGIN");
+    if (!authStartResp.includes("334")) {
+      throw new Error("SMTP AUTH LOGIN non supportato: " + authStartResp.trim());
+    }
+
+    const userResp = await sendCmd(btoa(config.username));
+    if (!userResp.includes("334")) {
+      throw new Error("SMTP AUTH username rifiutato: " + userResp.trim());
+    }
+
+    const passResp = await sendCmd(btoa(config.password));
+    if (!passResp.includes("235")) {
+      throw new Error("Autenticazione SMTP fallita: " + passResp.trim());
+    }
+
+    // MAIL FROM
+    const fromResp = await sendCmd(`MAIL FROM:<${config.from}>`);
+    checkResp(fromResp, "250", "MAIL FROM");
+
+    // RCPT TO
+    const rcptResp = await sendCmd(`RCPT TO:<${config.to}>`);
+    checkResp(rcptResp, "250", "RCPT TO");
+
+    // DATA
+    const dataResp = await sendCmd("DATA");
+    if (!dataResp.includes("354")) {
+      throw new Error("SMTP DATA rifiutato: " + dataResp.trim());
+    }
+
+    // Build email
+    const now = new Date().toUTCString();
+    const messageId = `<${crypto.randomUUID()}@${config.ehloDomain}>`;
+
+    const emailData = [
+      `From: ${config.from}`,
+      `To: ${config.to}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(config.subject)))}?=`,
+      `Date: ${now}`,
+      `Message-ID: ${messageId}`,
+      `X-Hotel-Request-ID: ${config.xHotelRequestId}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      btoa(unescape(encodeURIComponent(config.body))),
+      `.`,
+    ].join("\r\n");
+
+    const sendResp = await sendCmd(emailData);
+    if (!sendResp.includes("250")) {
+      throw new Error("Errore nell'invio dell'email: " + sendResp.trim());
+    }
+
+    console.log("Email sent successfully to", config.to);
+    await sendCmd("QUIT");
+    try { conn.close(); } catch { /* ignore */ }
+  } catch (e) {
+    try { conn.close(); } catch { /* ignore */ }
+    throw e;
+  }
+}
