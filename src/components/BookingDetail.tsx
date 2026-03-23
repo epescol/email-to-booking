@@ -8,7 +8,7 @@ import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users } 
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 import { toast } from "sonner";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 
