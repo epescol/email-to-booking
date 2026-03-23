@@ -10,6 +10,7 @@ import { Plus, BedDouble, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
 
 interface RoomForm {
   name: string;
@@ -139,11 +140,18 @@ export default function Rooms() {
                 <Input value={form.site_url} onChange={(e) => setForm({ ...form, site_url: e.target.value })} placeholder="https://..." />
               </div>
               <div className="space-y-2">
-                <Label>URL Foto (max 4)</Label>
-                <Input value={form.photo_url_1} onChange={(e) => setForm({ ...form, photo_url_1: e.target.value })} placeholder="Foto 1" />
-                <Input value={form.photo_url_2} onChange={(e) => setForm({ ...form, photo_url_2: e.target.value })} placeholder="Foto 2" />
-                <Input value={form.photo_url_3} onChange={(e) => setForm({ ...form, photo_url_3: e.target.value })} placeholder="Foto 3" />
-                <Input value={form.photo_url_4} onChange={(e) => setForm({ ...form, photo_url_4: e.target.value })} placeholder="Foto 4" />
+                <Label>Foto (max 4)</Label>
+                <RoomPhotoUpload
+                  photos={[form.photo_url_1, form.photo_url_2, form.photo_url_3, form.photo_url_4]}
+                  onPhotosChange={(photos) => setForm({
+                    ...form,
+                    photo_url_1: photos[0] || "",
+                    photo_url_2: photos[1] || "",
+                    photo_url_3: photos[2] || "",
+                    photo_url_4: photos[3] || "",
+                  })}
+                  roomId={editingId || undefined}
+                />
               </div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "Salvataggio..." : "Salva"}
