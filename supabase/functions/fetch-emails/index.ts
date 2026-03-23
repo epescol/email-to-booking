@@ -13,151 +13,184 @@ serve(async (req) => {
   }
 
   try {
-    // Auth check
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = await req.json();
+
+    // Determine mode: "webhook" (external service pushes emails) or "manual" (user triggers from dashboard)
+    const mode = body.mode || "webhook";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
+    if (mode === "webhook") {
+      // --- WEBHOOK MODE: External service (Zapier/Make/n8n) pushes email data ---
+      // Validate webhook secret
+      const webhookSecret = Deno.env.get("FETCH_EMAILS_WEBHOOK_SECRET");
+      const providedSecret = req.headers.get("x-webhook-secret") || body.webhook_secret;
 
-    // Get user's hotel_id
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("hotel_id")
-      .eq("user_id", userId)
-      .single();
+      if (webhookSecret && providedSecret !== webhookSecret) {
+        return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    if (!profile?.hotel_id) {
-      return new Response(JSON.stringify({ error: "Nessun hotel associato" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      // Expected body format:
+      // { emails: [{ subject, body, from, date, message_id, x_hotel_request_id? }], hotel_id: "..." }
+      // OR single email: { subject, body, from, date, message_id, hotel_id }
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get email settings
-    const { data: settings } = await supabase
-      .from("hotel_email_settings")
-      .select("*")
-      .eq("hotel_id", profile.hotel_id)
-      .single();
+      let hotelId = body.hotel_id;
+      if (!hotelId) {
+        return new Response(JSON.stringify({ error: "hotel_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    if (!settings?.imap_host || !settings?.imap_user || !settings?.imap_password) {
+      const emails = body.emails || [body];
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+      let imported = 0;
+      for (const email of emails) {
+        const messageId = email.message_id || `gen-${Date.now()}-${imported}`;
+
+        // Check if already imported
+        const { data: existing } = await supabase
+          .from("booking_messages")
+          .select("id")
+          .eq("email_message_id", messageId)
+          .maybeSingle();
+
+        if (existing) continue;
+
+        // Parse with AI
+        const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
+        if (!parsed) continue;
+
+        // Check for existing request via X-Hotel-Request-ID
+        let requestId: string | null = null;
+        if (email.x_hotel_request_id) {
+          const { data: existingReq } = await supabase
+            .from("booking_messages")
+            .select("request_id")
+            .eq("x_hotel_request_id", email.x_hotel_request_id)
+            .limit(1)
+            .maybeSingle();
+          if (existingReq) requestId = existingReq.request_id;
+        }
+
+        // Create new request if needed
+        if (!requestId) {
+          const { data: newReq, error: reqError } = await supabase
+            .from("booking_requests")
+            .insert({
+              hotel_id: hotelId,
+              first_name: parsed.first_name || null,
+              last_name: parsed.last_name || null,
+              email: parsed.email || null,
+              phone: parsed.phone || null,
+              check_in: parsed.check_in || null,
+              check_out: parsed.check_out || null,
+              notes: parsed.notes || null,
+              language: parsed.language || null,
+              alternative_dates: parsed.alternative_dates || null,
+              gender: parsed.gender || null,
+              address: parsed.address || null,
+              city: parsed.city || null,
+              country: parsed.country || null,
+              zip_code: parsed.zip_code || null,
+              source_email_id: messageId,
+              status: "nuova",
+            })
+            .select("id")
+            .single();
+
+          if (reqError) {
+            console.error("Error creating booking request:", reqError);
+            continue;
+          }
+          requestId = newReq.id;
+        }
+
+        // Insert the message
+        await supabase.from("booking_messages").insert({
+          request_id: requestId,
+          direction: "inbound",
+          subject: email.subject || "(Nessun oggetto)",
+          body: email.body || "",
+          email_message_id: messageId,
+          x_hotel_request_id: email.x_hotel_request_id || null,
+          sent_at: email.date || new Date().toISOString(),
+        });
+
+        imported++;
+      }
+
       return new Response(
-        JSON.stringify({ error: "Configura le credenziali IMAP nelle Impostazioni prima di scaricare le email." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ message: `Importate ${imported} nuove email.`, imported }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
+    } else {
+      // --- MANUAL MODE: User triggers from dashboard (returns webhook info) ---
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    // Connect to IMAP using Deno TCP
-    const emails = await fetchImapEmails(settings);
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
 
-    if (!emails.length) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("hotel_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.hotel_id) {
+        return new Response(JSON.stringify({ error: "Nessun hotel associato" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Return webhook configuration info
+      const webhookUrl = `${supabaseUrl}/functions/v1/fetch-emails`;
       return new Response(
-        JSON.stringify({ message: "Nessuna nuova email trovata.", imported: 0 }),
+        JSON.stringify({
+          message: "Usa un servizio esterno (Zapier, Make, n8n) per inviare le email a questo webhook.",
+          webhook_url: webhookUrl,
+          hotel_id: profile.hotel_id,
+          example_payload: {
+            mode: "webhook",
+            hotel_id: profile.hotel_id,
+            emails: [
+              {
+                subject: "Richiesta prenotazione",
+                body: "Testo dell'email...",
+                from: "cliente@esempio.com",
+                date: "2026-03-23T10:00:00Z",
+                message_id: "unique-message-id",
+              },
+            ],
+          },
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Parse each email with AI and insert
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    let imported = 0;
-    for (const email of emails) {
-      // Check if already imported
-      const { data: existing } = await supabase
-        .from("booking_messages")
-        .select("id")
-        .eq("email_message_id", email.messageId)
-        .maybeSingle();
-
-      if (existing) continue;
-
-      // Parse with AI
-      const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
-
-      if (!parsed) continue;
-
-      // Check if there's an existing request with this X-Hotel-Request-ID
-      let requestId: string | null = null;
-      if (email.xHotelRequestId) {
-        const { data: existingReq } = await supabase
-          .from("booking_messages")
-          .select("request_id")
-          .eq("x_hotel_request_id", email.xHotelRequestId)
-          .limit(1)
-          .maybeSingle();
-        if (existingReq) requestId = existingReq.request_id;
-      }
-
-      // If no existing request, create one
-      if (!requestId) {
-        const { data: newReq, error: reqError } = await supabase
-          .from("booking_requests")
-          .insert({
-            hotel_id: profile.hotel_id,
-            first_name: parsed.first_name || null,
-            last_name: parsed.last_name || null,
-            email: parsed.email || null,
-            phone: parsed.phone || null,
-            check_in: parsed.check_in || null,
-            check_out: parsed.check_out || null,
-            notes: parsed.notes || null,
-            language: parsed.language || null,
-            alternative_dates: parsed.alternative_dates || null,
-            gender: parsed.gender || null,
-            address: parsed.address || null,
-            city: parsed.city || null,
-            country: parsed.country || null,
-            zip_code: parsed.zip_code || null,
-            source_email_id: email.messageId,
-            status: "nuova",
-          })
-          .select("id")
-          .single();
-
-        if (reqError) {
-          console.error("Error creating booking request:", reqError);
-          continue;
-        }
-        requestId = newReq.id;
-      }
-
-      // Insert the message
-      await supabase.from("booking_messages").insert({
-        request_id: requestId,
-        direction: "inbound",
-        subject: email.subject,
-        body: email.body,
-        email_message_id: email.messageId,
-        x_hotel_request_id: email.xHotelRequestId || null,
-        sent_at: email.date || new Date().toISOString(),
-      });
-
-      imported++;
-    }
-
-    return new Response(
-      JSON.stringify({ message: `Importate ${imported} nuove email.`, imported }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (e) {
     console.error("fetch-emails error:", e);
     return new Response(
@@ -166,191 +199,6 @@ serve(async (req) => {
     );
   }
 });
-
-// ---- IMAP fetch using raw TLS connection ----
-
-interface EmailMessage {
-  messageId: string;
-  subject: string;
-  body: string;
-  from: string;
-  date: string;
-  xHotelRequestId: string | null;
-}
-
-async function fetchImapEmails(settings: any): Promise<EmailMessage[]> {
-  const port = settings.imap_port || 993;
-  const hostname = settings.imap_host;
-  const username = settings.imap_user;
-  const password = settings.imap_password;
-  const useSsl = settings.imap_use_ssl !== false;
-  const filterSender = settings.filter_sender_email || null;
-
-  let conn: Deno.TlsConn | Deno.TcpConn;
-
-  if (useSsl) {
-    conn = await Deno.connectTls({ hostname, port });
-  } else {
-    conn = await Deno.connect({ hostname, port });
-  }
-
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  async function readResponse(): Promise<string> {
-    const buf = new Uint8Array(65536);
-    let result = "";
-    // Read until we get a complete response
-    while (true) {
-      const n = await conn.read(buf);
-      if (n === null) break;
-      result += decoder.decode(buf.subarray(0, n));
-      // Check if response is complete (tagged response or continuation)
-      if (/^[A-Z]\d+ (OK|NO|BAD)/m.test(result) || result.startsWith("* OK") || result.includes("\r\n")) {
-        // Give a tiny delay to collect any remaining data
-        await new Promise((r) => setTimeout(r, 50));
-        const n2 = await Promise.race([
-          conn.read(buf),
-          new Promise<null>((r) => setTimeout(() => r(null), 100)),
-        ]);
-        if (n2 && typeof n2 === "number") {
-          result += decoder.decode(buf.subarray(0, n2));
-        }
-        break;
-      }
-    }
-    return result;
-  }
-
-  async function sendCommand(tag: string, command: string): Promise<string> {
-    const cmd = `${tag} ${command}\r\n`;
-    await conn.write(encoder.encode(cmd));
-    let response = "";
-    const buf = new Uint8Array(65536);
-    while (true) {
-      const n = await conn.read(buf);
-      if (n === null) break;
-      response += decoder.decode(buf.subarray(0, n));
-      if (response.includes(`${tag} OK`) || response.includes(`${tag} NO`) || response.includes(`${tag} BAD`)) {
-        break;
-      }
-    }
-    return response;
-  }
-
-  try {
-    // Read greeting
-    await readResponse();
-
-    // Login
-    const loginResp = await sendCommand("A1", `LOGIN ${username} "${password.replace(/"/g, '\\"')}"`);
-    if (loginResp.includes("A1 NO") || loginResp.includes("A1 BAD")) {
-      throw new Error("Autenticazione IMAP fallita. Controlla le credenziali.");
-    }
-
-    // Select INBOX
-    await sendCommand("A2", "SELECT INBOX");
-
-    // Search for unseen emails, optionally filtering by sender
-    let searchCmd = "SEARCH UNSEEN";
-    if (filterSender) {
-      searchCmd = `SEARCH UNSEEN FROM "${filterSender}"`;
-    }
-    const searchResp = await sendCommand("A3", searchCmd);
-
-    // Parse message numbers from search response
-    const searchMatch = searchResp.match(/\* SEARCH ([\d\s]+)/);
-    if (!searchMatch) {
-      await sendCommand("A9", "LOGOUT");
-      conn.close();
-      return [];
-    }
-
-    const msgNums = searchMatch[1].trim().split(/\s+/).slice(0, 20); // Limit to 20 emails per fetch
-    const emails: EmailMessage[] = [];
-
-    for (let i = 0; i < msgNums.length; i++) {
-      const num = msgNums[i];
-      const tag = `B${i}`;
-      const fetchResp = await sendCommand(tag, `FETCH ${num} (BODY[HEADER] BODY[TEXT])`);
-
-      // Parse headers
-      const headerMatch = fetchResp.match(/BODY\[HEADER\] \{(\d+)\}\r\n([\s\S]*?)(?=BODY\[TEXT\])/);
-      const textMatch = fetchResp.match(/BODY\[TEXT\] \{(\d+)\}\r\n([\s\S]*?)(?=\)\r\n[A-Z]|\)$)/);
-
-      const headers = headerMatch ? headerMatch[2] : "";
-      const body = textMatch ? textMatch[2] : "";
-
-      const subject = extractHeader(headers, "Subject") || "(Nessun oggetto)";
-      const from = extractHeader(headers, "From") || "";
-      const messageId = extractHeader(headers, "Message-ID") || `gen-${Date.now()}-${i}`;
-      const date = extractHeader(headers, "Date") || "";
-      const xHotelRequestId = extractHeader(headers, "X-Hotel-Request-ID");
-
-      // Decode body (basic - handles plain text)
-      const cleanBody = decodeBody(body, headers);
-
-      emails.push({
-        messageId: messageId.replace(/[<>]/g, ""),
-        subject: decodeEncodedWords(subject),
-        body: cleanBody,
-        from,
-        date: date ? new Date(date).toISOString() : new Date().toISOString(),
-        xHotelRequestId,
-      });
-    }
-
-    // Logout
-    await sendCommand("A9", "LOGOUT");
-    conn.close();
-
-    return emails;
-  } catch (e) {
-    try {
-      conn.close();
-    } catch {}
-    throw e;
-  }
-}
-
-function extractHeader(headers: string, name: string): string | null {
-  const regex = new RegExp(`^${name}:\\s*(.+?)(?:\\r?\\n(?!\\s)|$)`, "im");
-  const match = headers.match(regex);
-  return match ? match[1].trim() : null;
-}
-
-function decodeEncodedWords(str: string): string {
-  return str.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_, charset, encoding, text) => {
-    if (encoding.toUpperCase() === "B") {
-      return atob(text);
-    }
-    return text.replace(/=([0-9A-Fa-f]{2})/g, (__, hex: string) =>
-      String.fromCharCode(parseInt(hex, 16))
-    ).replace(/_/g, " ");
-  });
-}
-
-function decodeBody(body: string, headers: string): string {
-  const transferEncoding = extractHeader(headers, "Content-Transfer-Encoding") || "";
-
-  if (transferEncoding.toLowerCase() === "base64") {
-    try {
-      return atob(body.replace(/\s/g, ""));
-    } catch {
-      return body;
-    }
-  }
-
-  if (transferEncoding.toLowerCase() === "quoted-printable") {
-    return body
-      .replace(/=\r?\n/g, "")
-      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex: string) =>
-        String.fromCharCode(parseInt(hex, 16))
-      );
-  }
-
-  return body.trim();
-}
 
 // ---- AI Parsing ----
 
@@ -372,15 +220,15 @@ interface ParsedBooking {
 }
 
 async function parseBookingWithAI(
-  email: EmailMessage,
+  email: { subject?: string; body?: string; from?: string },
   apiKey: string
 ): Promise<ParsedBooking | null> {
   const prompt = `Analizza questa email di richiesta prenotazione hotel ed estrai i dati strutturati.
 
-SOGGETTO: ${email.subject}
-DA: ${email.from}
+SOGGETTO: ${email.subject || ""}
+DA: ${email.from || ""}
 CORPO:
-${email.body.substring(0, 4000)}
+${(email.body || "").substring(0, 4000)}
 
 Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.`;
 
