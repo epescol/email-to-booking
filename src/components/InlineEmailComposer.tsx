@@ -263,7 +263,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       } else {
         filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
       }
-      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices);
+      const guests = pricingMode === "per_room" ? (sr.occupancy || 1) : 1;
+      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices, guests);
     }
     return result;
   }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms, pricingMode]);
