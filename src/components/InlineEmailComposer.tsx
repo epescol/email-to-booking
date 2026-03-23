@@ -242,22 +242,33 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, manualPrice: price } : sr));
   };
 
+  // Generate rooms HTML for template
+  const roomsPreviewHtml = useMemo(() => {
+    if (!rooms || selectedRooms.length === 0) return "";
+    return selectedRooms.map(sr => {
+      const roomData = rooms.find(r => r.id === sr.roomId);
+      if (!roomData) return "";
+      const calc = roomCalculations[sr.roomId];
+      const manual = parseFloat(sr.manualPrice);
+      const price = !isNaN(manual) && manual > 0 ? manual.toFixed(2) : calc ? calc.total.toFixed(2) : null;
+      const nights = calc ? calc.nights : null;
+      return generateRoomPreviewHtml(roomData, price, nights);
+    }).join("");
+  }, [rooms, selectedRooms, roomCalculations]);
+
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
-        setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr));
-        // Convert plain text template to simple HTML
-        const htmlBody = applyTemplate(tpl.body_template, booking, priceStr)
-          .split("\n")
-          .map(line => line.trim() ? `<p>${line}</p>` : "<p></p>")
-          .join("");
+        setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
+        // Template body is already HTML, apply directly
+        const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
         setBody(htmlBody);
       }
     }
-  }, [selectedTemplate, templates, booking, displayPrice]);
+  }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) {
