@@ -17,6 +17,7 @@ export default function Templates() {
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
 
