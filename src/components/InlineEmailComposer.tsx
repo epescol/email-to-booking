@@ -45,11 +45,13 @@ interface PricePeriod {
 interface RoomPrice {
   period_id: string;
   price_per_night: number;
+  occupancy: number | null;
 }
 
 interface SelectedRoom {
   roomId: string;
   manualPrice: string;
+  occupancy: number | null; // used in per_occupancy mode
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
@@ -167,6 +169,17 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
 
+  // Fetch hotel pricing mode
+  const { data: hotelData } = useQuery({
+    queryKey: ["hotel_pricing_mode_composer"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hotels").select("id, pricing_mode").limit(1).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
+
   const { data: templates } = useQuery({
     queryKey: ["offer_templates"],
     queryFn: async () => {
@@ -211,7 +224,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         normalizedType.includes(r.name.toLowerCase().trim())
       );
       if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
-        matched.push({ roomId: matchedRoom.id, manualPrice: "" });
+        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1 });
       }
     }
     
@@ -230,7 +243,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       if (selectedRoomIds.length === 0) return [];
       const { data, error } = await supabase
         .from("room_prices")
-        .select("room_id, period_id, price_per_night")
+        .select("room_id, period_id, price_per_night, occupancy")
         .in("room_id", selectedRoomIds);
       if (error) throw error;
       return data;
@@ -243,11 +256,16 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     if (!booking.check_in || !booking.check_out || !pricePeriods || !allRoomPrices) return {};
     const result: Record<string, ReturnType<typeof calculateStayPrice>> = {};
     for (const sr of selectedRooms) {
-      const prices = allRoomPrices.filter(rp => rp.room_id === sr.roomId);
-      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, prices);
+      let filteredPrices: RoomPrice[];
+      if (pricingMode === "per_occupancy" && sr.occupancy) {
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy);
+      } else {
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
+      }
+      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices);
     }
     return result;
-  }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms]);
+  }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms, pricingMode]);
 
   // Grand total
   const grandTotal = useMemo(() => {
@@ -270,7 +288,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const availableRooms = rooms?.filter(r => !selectedRooms.some(sr => sr.roomId === r.id)) ?? [];
 
   const addRoom = (roomId: string) => {
-    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "" }]);
+    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1 }]);
   };
 
   const removeRoom = (roomId: string) => {
@@ -279,6 +297,10 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   const updateRoomManualPrice = (roomId: string, price: string) => {
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, manualPrice: price } : sr));
+  };
+
+  const updateRoomOccupancy = (roomId: string, occupancy: number) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, occupancy } : sr));
   };
 
   // Generate rooms HTML for template
@@ -421,6 +443,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+
+                  {pricingMode === "per_occupancy" && room && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Occupazione</Label>
+                      <Select
+                        value={sr.occupancy?.toString() || ""}
+                        onValueChange={(v) => updateRoomOccupancy(sr.roomId, parseInt(v))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Seleziona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(
+                            { length: (room.max_occupancy || 2) - (room.min_occupancy || 1) + 1 },
+                            (_, i) => (room.min_occupancy || 1) + i
+                          ).map((occ) => (
+                            <SelectItem key={occ} value={occ.toString()}>
+                              {occ} {occ === 1 ? "persona" : "persone"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {calc && (
                     <div className="text-xs space-y-0.5">

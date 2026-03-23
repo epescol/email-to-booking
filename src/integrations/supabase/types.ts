@@ -252,6 +252,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
+          pricing_mode: string
           updated_at: string
           website: string | null
         }
@@ -262,6 +263,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
+          pricing_mode?: string
           updated_at?: string
           website?: string | null
         }
@@ -272,6 +274,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          pricing_mode?: string
           updated_at?: string
           website?: string | null
         }
@@ -391,18 +394,21 @@ export type Database = {
       room_prices: {
         Row: {
           id: string
+          occupancy: number | null
           period_id: string
           price_per_night: number
           room_id: string
         }
         Insert: {
           id?: string
+          occupancy?: number | null
           period_id: string
           price_per_night?: number
           room_id: string
         }
         Update: {
           id?: string
+          occupancy?: number | null
           period_id?: string
           price_per_night?: number
           room_id?: string
