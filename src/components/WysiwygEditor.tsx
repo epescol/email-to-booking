@@ -1,20 +1,40 @@
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import { TextStyle } from "@tiptap/extension-text-style";
-import Color from "@tiptap/extension-color";
-import Image from "@tiptap/extension-image";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 import {
-  Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
-  Link as LinkIcon, Undo, Redo, AlignLeft, AlignCenter, AlignRight,
-  Heading2, Heading3, Code, Image as ImageIcon, Palette,
-} from "lucide-react";
-import { Toggle } from "@/components/ui/toggle";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useEffect, useState, useCallback } from "react";
+  ClassicEditor,
+  Essentials,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Heading,
+  Paragraph,
+  Link,
+  List,
+  Alignment,
+  Font,
+  Image,
+  ImageInsertViaUrl,
+  ImageResize,
+  ImageStyle,
+  ImageToolbar,
+  Table,
+  TableToolbar,
+  TableProperties,
+  TableCellProperties,
+  BlockQuote,
+  Indent,
+  IndentBlock,
+  MediaEmbed,
+  HorizontalLine,
+  SourceEditing,
+  GeneralHtmlSupport,
+  Undo,
+  PasteFromOffice,
+  RemoveFormat,
+  HtmlEmbed,
+} from "ckeditor5";
+import "ckeditor5/ckeditor5.css";
+import { useRef, useEffect } from "react";
 
 interface WysiwygEditorProps {
   content: string;
@@ -22,284 +42,104 @@ interface WysiwygEditorProps {
   placeholder?: string;
 }
 
-export function WysiwygEditor({ content, onChange, placeholder }: WysiwygEditorProps) {
-  const [htmlMode, setHtmlMode] = useState(false);
-  const [htmlSource, setHtmlSource] = useState("");
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3] },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: "text-primary underline" },
-      }),
-      Underline,
-      TextStyle,
-      Color,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ inline: false, allowBase64: true }),
+const EDITOR_CONFIG = {
+  licenseKey: "GPL" as const,
+  plugins: [
+    Essentials, Bold, Italic, Underline, Strikethrough,
+    Heading, Paragraph, Link, List, Alignment,
+    Font, Image, ImageInsertViaUrl, ImageResize, ImageStyle, ImageToolbar,
+    Table, TableToolbar, TableProperties, TableCellProperties,
+    BlockQuote, Indent, IndentBlock, MediaEmbed,
+    HorizontalLine, SourceEditing, GeneralHtmlSupport,
+    Undo, PasteFromOffice, RemoveFormat, HtmlEmbed,
+  ],
+  toolbar: {
+    items: [
+      "undo", "redo",
+      "|",
+      "heading",
+      "|",
+      "bold", "italic", "underline", "strikethrough", "removeFormat",
+      "|",
+      "fontSize", "fontColor", "fontBackgroundColor",
+      "|",
+      "alignment",
+      "|",
+      "bulletedList", "numberedList", "outdent", "indent",
+      "|",
+      "link", "insertImage", "insertTable", "blockQuote", "horizontalLine", "htmlEmbed",
+      "|",
+      "sourceEditing",
     ],
-    content,
-    onUpdate: ({ editor }) => {
-      if (!htmlMode) {
-        onChange(editor.getHTML());
-      }
-    },
-    editorProps: {
-      attributes: {
-        class:
-          "prose prose-sm max-w-none min-h-[150px] px-3 py-2 focus:outline-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_img]:max-w-full [&_img]:rounded-md",
-      },
-    },
-  });
+    shouldNotGroupWhenFull: false,
+  },
+  heading: {
+    options: [
+      { model: "paragraph" as const, title: "Paragrafo", class: "ck-heading_paragraph" },
+      { model: "heading1" as const, view: "h1", title: "Titolo 1", class: "ck-heading_heading1" },
+      { model: "heading2" as const, view: "h2", title: "Titolo 2", class: "ck-heading_heading2" },
+      { model: "heading3" as const, view: "h3", title: "Titolo 3", class: "ck-heading_heading3" },
+    ],
+  },
+  fontSize: {
+    options: [10, 12, 14, 16, 18, 20, 24, 28, 32],
+  },
+  image: {
+    toolbar: [
+      "imageStyle:inline", "imageStyle:block", "imageStyle:side",
+      "|", "imageTextAlternative",
+    ],
+    insert: { type: "auto" as const },
+  },
+  table: {
+    contentToolbar: [
+      "tableColumn", "tableRow", "mergeTableCells",
+      "tableProperties", "tableCellProperties",
+    ],
+  },
+  htmlSupport: {
+    allow: [
+      { name: /.*/} as any,
+    ],
+  },
+  placeholder: "Scrivi il contenuto...",
+};
+
+export function WysiwygEditor({ content, onChange, placeholder }: WysiwygEditorProps) {
+  const editorRef = useRef<ClassicEditor | null>(null);
+  const lastExternalContent = useRef(content);
 
   // Sync external content changes (e.g. template applied)
   useEffect(() => {
-    if (editor && !htmlMode && content !== editor.getHTML()) {
-      editor.commands.setContent(content, { emitUpdate: false });
-    }
-    if (htmlMode) {
-      setHtmlSource(content);
-    }
-  }, [content, editor, htmlMode]);
-
-  const toggleHtmlMode = useCallback(() => {
-    if (htmlMode) {
-      // Switching back to WYSIWYG: apply HTML source
-      if (editor) {
-        editor.commands.setContent(htmlSource, { emitUpdate: false });
-        onChange(htmlSource);
+    if (editorRef.current && content !== lastExternalContent.current) {
+      const currentData = editorRef.current.getData();
+      if (content !== currentData) {
+        editorRef.current.setData(content);
       }
-    } else {
-      // Switching to HTML: populate source from editor
-      if (editor) {
-        setHtmlSource(editor.getHTML());
-      }
+      lastExternalContent.current = content;
     }
-    setHtmlMode(!htmlMode);
-  }, [htmlMode, htmlSource, editor, onChange]);
+  }, [content]);
 
-  const handleHtmlSourceChange = (val: string) => {
-    setHtmlSource(val);
-    onChange(val);
+  const config = {
+    ...EDITOR_CONFIG,
+    placeholder: placeholder || EDITOR_CONFIG.placeholder,
+    initialData: content,
   };
-
-  const addLink = () => {
-    if (!editor) return;
-    const url = window.prompt("URL:", "https://");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
-  };
-
-  const addImage = () => {
-    if (!editor) return;
-    const url = window.prompt("URL immagine:", "https://");
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  };
-
-  const setColor = () => {
-    if (!editor) return;
-    const color = window.prompt("Colore (es. #ff0000):", "#000000");
-    if (color) {
-      editor.chain().focus().setColor(color).run();
-    }
-  };
-
-  if (!editor) return null;
 
   return (
-    <div className="rounded-md border border-input bg-background">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-1 py-1">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("heading", { level: 2 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          aria-label="Titolo 2"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <Heading2 className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("heading", { level: 3 })}
-          onPressedChange={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          aria-label="Titolo 3"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <Heading3 className="h-3.5 w-3.5" />
-        </Toggle>
-
-        <div className="w-px h-5 bg-border mx-0.5" />
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("bold")}
-          onPressedChange={() => editor.chain().focus().toggleBold().run()}
-          aria-label="Grassetto"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <Bold className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("italic")}
-          onPressedChange={() => editor.chain().focus().toggleItalic().run()}
-          aria-label="Corsivo"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <Italic className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("underline")}
-          onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
-          aria-label="Sottolineato"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <UnderlineIcon className="h-3.5 w-3.5" />
-        </Toggle>
-
-        <div className="w-px h-5 bg-border mx-0.5" />
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "left" })}
-          onPressedChange={() => editor.chain().focus().setTextAlign("left").run()}
-          aria-label="Allinea a sinistra"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <AlignLeft className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "center" })}
-          onPressedChange={() => editor.chain().focus().setTextAlign("center").run()}
-          aria-label="Centra"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <AlignCenter className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "right" })}
-          onPressedChange={() => editor.chain().focus().setTextAlign("right").run()}
-          aria-label="Allinea a destra"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <AlignRight className="h-3.5 w-3.5" />
-        </Toggle>
-
-        <div className="w-px h-5 bg-border mx-0.5" />
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("bulletList")}
-          onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
-          aria-label="Elenco puntato"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <List className="h-3.5 w-3.5" />
-        </Toggle>
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("orderedList")}
-          onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
-          aria-label="Elenco numerato"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <ListOrdered className="h-3.5 w-3.5" />
-        </Toggle>
-
-        <div className="w-px h-5 bg-border mx-0.5" />
-
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("link")}
-          onPressedChange={addLink}
-          aria-label="Link"
-          className="h-7 w-7 p-0"
-          disabled={htmlMode}
-        >
-          <LinkIcon className="h-3.5 w-3.5" />
-        </Toggle>
-        <button
-          onClick={addImage}
-          className="h-7 w-7 p-0 inline-flex items-center justify-center rounded-md text-sm hover:bg-muted disabled:opacity-50"
-          disabled={htmlMode}
-          title="Inserisci immagine"
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={setColor}
-          className="h-7 w-7 p-0 inline-flex items-center justify-center rounded-md text-sm hover:bg-muted disabled:opacity-50"
-          disabled={htmlMode}
-          title="Colore testo"
-        >
-          <Palette className="h-3.5 w-3.5" />
-        </button>
-
-        <div className="ml-auto flex items-center gap-0.5">
-          <Toggle
-            size="sm"
-            onPressedChange={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo() || htmlMode}
-            aria-label="Annulla"
-            className="h-7 w-7 p-0"
-          >
-            <Undo className="h-3.5 w-3.5" />
-          </Toggle>
-          <Toggle
-            size="sm"
-            onPressedChange={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo() || htmlMode}
-            aria-label="Ripeti"
-            className="h-7 w-7 p-0"
-          >
-            <Redo className="h-3.5 w-3.5" />
-          </Toggle>
-
-          <div className="w-px h-5 bg-border mx-0.5" />
-
-          <Button
-            variant={htmlMode ? "default" : "ghost"}
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={toggleHtmlMode}
-          >
-            <Code className="h-3.5 w-3.5 mr-1" />
-            HTML
-          </Button>
-        </div>
-      </div>
-
-      {/* Editor or HTML source */}
-      {htmlMode ? (
-        <Textarea
-          value={htmlSource}
-          onChange={(e) => handleHtmlSourceChange(e.target.value)}
-          className="border-0 rounded-none min-h-[150px] font-mono text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-          placeholder="<p>Scrivi HTML...</p>"
-        />
-      ) : (
-        <EditorContent editor={editor} />
-      )}
+    <div className="ckeditor-wrapper rounded-md border border-input bg-background overflow-hidden [&_.ck-editor__editable]:min-h-[180px] [&_.ck-editor__editable]:max-h-[500px] [&_.ck-editor__editable]:overflow-y-auto [&_.ck.ck-editor__main>.ck-editor__editable]:border-0 [&_.ck.ck-toolbar]:border-0 [&_.ck.ck-toolbar]:border-b [&_.ck.ck-toolbar]:border-input [&_.ck-rounded-corners_.ck.ck-editor__top_.ck-sticky-panel_.ck-toolbar]:rounded-none [&_.ck.ck-editor]:rounded-none">
+      <CKEditor
+        editor={ClassicEditor}
+        config={config}
+        onReady={(editor) => {
+          editorRef.current = editor;
+        }}
+        onChange={(_event, editor) => {
+          const data = editor.getData();
+          lastExternalContent.current = data;
+          onChange(data);
+        }}
+      />
     </div>
   );
 }
