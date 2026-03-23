@@ -243,7 +243,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       if (selectedRoomIds.length === 0) return [];
       const { data, error } = await supabase
         .from("room_prices")
-        .select("room_id, period_id, price_per_night")
+        .select("room_id, period_id, price_per_night, occupancy")
         .in("room_id", selectedRoomIds);
       if (error) throw error;
       return data;
