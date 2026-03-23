@@ -12,6 +12,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { SendOfferDialog } from "@/components/SendOfferDialog";
 
+function stripQuotedContent(body: string | null): string {
+  if (!body) return "";
+  const text = body.replace(/\\n/g, '\n');
+  // Match common quote separators
+  const patterns = [
+    /\n_{5,}/,                          // _____ separator (Outlook)
+    /\n-{5,}/,                          // ----- separator
+    /\nDa:.*\nInviato:.*\n/i,           // Italian Outlook quote header
+    /\nFrom:.*\nSent:.*\n/i,            // English Outlook quote header
+    /\nOn .+ wrote:\s*\n/i,             // Gmail-style "On ... wrote:"
+    /\nIl .+ ha scritto:\s*\n/i,        // Italian Gmail-style
+    /\n>+ /,                            // > quoted lines
+  ];
+  let cutIndex = text.length;
+  for (const pattern of patterns) {
+    const match = text.search(pattern);
+    if (match !== -1 && match < cutIndex) {
+      cutIndex = match;
+    }
+  }
+  return text.substring(0, cutIndex).trim();
+}
+
 interface BookingDetailProps {
   bookingId: string;
   onBack: () => void;
