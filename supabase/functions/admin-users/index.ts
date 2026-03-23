@@ -145,7 +145,27 @@ Deno.serve(async (req) => {
 
     if (action === "update") {
       const { user_id, email, display_name, hotel_name, role, password } = payload;
-      
+
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "user_id richiesto" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (email && (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+        return new Response(JSON.stringify({ error: "Email non valida" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (password && (typeof password !== "string" || password.length < 8)) {
+        return new Response(JSON.stringify({ error: "La password deve avere almeno 8 caratteri" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (role && !["user", "admin"].includes(role)) {
+        return new Response(JSON.stringify({ error: "Ruolo non valido" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       // Update auth user
       const updateData: Record<string, unknown> = {};
       if (email) updateData.email = email;
