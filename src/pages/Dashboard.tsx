@@ -22,6 +22,36 @@ const STATUSES = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: bookings, isLoading, refetch } = useQuery({
+    queryKey: ["booking_requests", activeTab],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_requests")
+        .select("*")
+        .eq("status", activeTab)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: counts } = useQuery({
+    queryKey: ["booking_counts"],
+    queryFn: async () => {
+      const results: Record<string, number> = {};
+      for (const s of STATUSES) {
+        const { count, error } = await supabase
+          .from("booking_requests")
+          .select("*", { count: "exact", head: true })
+          .eq("status", s.value);
+        if (!error) results[s.value] = count || 0;
+      }
+      return results;
+    },
+  });
+
   const handleRefresh = () => {
     refetch();
     queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
@@ -47,9 +77,9 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Prenotazioni</h1>
           <p className="text-muted-foreground text-sm">Gestisci le richieste di prenotazione</p>
         </div>
-        <Button onClick={handleFetchEmails} disabled={fetchingEmails} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          {fetchingEmails ? "Scaricando..." : "Scarica Email"}
+        <Button onClick={handleRefresh} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Aggiorna
         </Button>
       </div>
 
