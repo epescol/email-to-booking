@@ -125,7 +125,7 @@ export default function Dashboard() {
                         <TableHead>Check-in</TableHead>
                         <TableHead>Check-out</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Stato</TableHead>
+                        
                         <TableHead>Data</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
