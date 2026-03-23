@@ -4,26 +4,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Send } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { SendOfferDialog } from "@/components/SendOfferDialog";
+import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 
 function stripQuotedContent(body: string | null): string {
   if (!body) return "";
   const text = body.replace(/\\n/g, '\n');
-  // Match common quote separators
   const patterns = [
-    /\n_{5,}/,                          // _____ separator (Outlook)
-    /\n-{5,}/,                          // ----- separator
-    /\nDa:.*\nInviato:.*\n/i,           // Italian Outlook quote header
-    /\nFrom:.*\nSent:.*\n/i,            // English Outlook quote header
-    /\nOn .+ wrote:\s*\n/i,             // Gmail-style "On ... wrote:"
-    /\nIl .+ ha scritto:\s*\n/i,        // Italian Gmail-style
-    /\n>+ /,                            // > quoted lines
+    /\n_{5,}/,
+    /\n-{5,}/,
+    /\nDa:.*\nInviato:.*\n/i,
+    /\nFrom:.*\nSent:.*\n/i,
+    /\nOn .+ wrote:\s*\n/i,
+    /\nIl .+ ha scritto:\s*\n/i,
+    /\n>+ /,
   ];
   let cutIndex = text.length;
   for (const pattern of patterns) {
@@ -42,13 +41,10 @@ interface BookingDetailProps {
 
 const STATUS_OPTIONS = [
   { value: "nuova", label: "Nuova" },
-  { value: "offerta_inviata", label: "Offerta Inviata" },
-  { value: "caparra_inviata", label: "Caparra Inviata" },
-  { value: "confermata", label: "Confermata" },
+  { value: "presa_in_carico", label: "Presa in Carico" },
 ];
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: booking, refetch } = useQuery({
@@ -90,7 +86,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     }
   };
 
-  const handleOfferSent = () => {
+  const handleMessageSent = () => {
     refetch();
     refetchMessages();
     queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
@@ -112,10 +108,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
-        <Button onClick={() => setSendDialogOpen(true)} disabled={!booking.email}>
-          <Send className="mr-2 h-4 w-4" />
-          Invia Offerta
-        </Button>
         <StatusBadge status={booking.status} />
         <Select value={booking.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-48">
@@ -165,15 +157,20 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             </CardContent>
           </Card>
 
+          {/* Conversation: inline composer + messages */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Cronologia Messaggi</CardTitle>
+              <CardTitle className="text-base">Conversazione</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Inline email composer at the top */}
+              <InlineEmailComposer booking={booking} onSent={handleMessageSent} />
+
+              {/* Message history */}
               {!messages?.length ? (
                 <p className="text-sm text-muted-foreground">Nessun messaggio</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
@@ -243,13 +240,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
           </Card>
         </div>
       </div>
-
-      <SendOfferDialog
-        open={sendDialogOpen}
-        onOpenChange={setSendDialogOpen}
-        booking={booking}
-        onSent={handleOfferSent}
-      />
     </div>
   );
 }

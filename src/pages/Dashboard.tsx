@@ -14,9 +14,7 @@ import { BookingDetail } from "@/components/BookingDetail";
 
 const STATUSES = [
   { value: "nuova", label: "Nuove", icon: Mail },
-  { value: "offerta_inviata", label: "Offerta Inviata", icon: Calendar },
-  { value: "caparra_inviata", label: "Caparra Inviata", icon: Calendar },
-  { value: "confermata", label: "Confermate", icon: Calendar },
+  { value: "presa_in_carico", label: "Prese in Carico", icon: Calendar },
 ];
 
 export default function Dashboard() {
@@ -83,7 +81,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {STATUSES.map((s) => (
           <Card
             key={s.value}

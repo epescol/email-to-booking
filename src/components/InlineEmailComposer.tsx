@@ -1,20 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, Calculator } from "lucide-react";
+import { Send, Loader2, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-interface SendOfferDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface InlineEmailComposerProps {
   booking: {
     id: string;
     first_name: string | null;
@@ -24,15 +23,6 @@ interface SendOfferDialogProps {
     check_out: string | null;
   };
   onSent: () => void;
-}
-
-function applyTemplate(template: string, booking: SendOfferDialogProps["booking"], price?: string): string {
-  return template
-    .replace(/\{\{nome\}\}/g, booking.first_name || "")
-    .replace(/\{\{cognome\}\}/g, booking.last_name || "")
-    .replace(/\{\{check_in\}\}/g, booking.check_in ? format(new Date(booking.check_in), "dd/MM/yyyy", { locale: it }) : "")
-    .replace(/\{\{check_out\}\}/g, booking.check_out ? format(new Date(booking.check_out), "dd/MM/yyyy", { locale: it }) : "")
-    .replace(/\{\{prezzo\}\}/g, price || "[PREZZO]");
 }
 
 interface PricePeriod {
@@ -47,6 +37,15 @@ interface RoomPrice {
   price_per_night: number;
 }
 
+function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string): string {
+  return template
+    .replace(/\{\{nome\}\}/g, booking.first_name || "")
+    .replace(/\{\{cognome\}\}/g, booking.last_name || "")
+    .replace(/\{\{check_in\}\}/g, booking.check_in ? format(new Date(booking.check_in), "dd/MM/yyyy", { locale: it }) : "")
+    .replace(/\{\{check_out\}\}/g, booking.check_out ? format(new Date(booking.check_out), "dd/MM/yyyy", { locale: it }) : "")
+    .replace(/\{\{prezzo\}\}/g, price || "[PREZZO]");
+}
+
 function calculateStayPrice(
   checkIn: string,
   checkOut: string,
@@ -56,8 +55,6 @@ function calculateStayPrice(
   try {
     const startDate = parseISO(checkIn);
     const endDate = parseISO(checkOut);
-    
-    // Each night = the day you sleep (check-in day counts, check-out day doesn't)
     const stayDays = eachDayOfInterval({ start: startDate, end: new Date(endDate.getTime() - 86400000) });
     if (stayDays.length === 0) return null;
 
@@ -95,13 +92,14 @@ function calculateStayPrice(
   }
 }
 
-export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOfferDialogProps) {
+export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProps) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [manualPrice, setManualPrice] = useState<string>("");
+  const [priceOpen, setPriceOpen] = useState(false);
 
   const { data: templates } = useQuery({
     queryKey: ["offer_templates"],
@@ -110,7 +108,6 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
       if (error) throw error;
       return data;
     },
-    enabled: open,
   });
 
   const { data: rooms } = useQuery({
@@ -120,7 +117,6 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
       if (error) throw error;
       return data;
     },
-    enabled: open,
   });
 
   const { data: pricePeriods } = useQuery({
@@ -130,7 +126,6 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
       if (error) throw error;
       return data;
     },
-    enabled: open,
   });
 
   const { data: roomPrices } = useQuery({
@@ -143,7 +138,7 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
       if (error) throw error;
       return data;
     },
-    enabled: open && !!selectedRoom,
+    enabled: !!selectedRoom,
   });
 
   const calculatedPrice = useMemo(() => {
@@ -153,7 +148,6 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
 
   const displayPrice = manualPrice || (calculatedPrice ? calculatedPrice.total.toFixed(2) : "");
 
-  // Apply template when selected
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
@@ -165,7 +159,6 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
     }
   }, [selectedTemplate, templates, booking, displayPrice]);
 
-  // Update price in body when price changes (if template was already applied)
   useEffect(() => {
     if (displayPrice && body.includes("[PREZZO]")) {
       setBody(prev => prev.replace(/\[PREZZO\]/g, `€${displayPrice}`));
@@ -206,14 +199,13 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
       if (!response.ok) {
         toast.error(result.error || "Errore nell'invio");
       } else {
-        toast.success("Offerta inviata con successo!");
-        onOpenChange(false);
-        onSent();
+        toast.success("Email inviata con successo!");
         setSubject("");
         setBody("");
         setSelectedTemplate("");
         setSelectedRoom("");
         setManualPrice("");
+        onSent();
       }
     } catch {
       toast.error("Errore di connessione");
@@ -224,19 +216,31 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
 
   const selectedRoomName = rooms?.find(r => r.id === selectedRoom)?.name;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Invia Offerta a {booking.first_name} {booking.last_name}</DialogTitle>
-        </DialogHeader>
+  if (!booking.email) {
+    return (
+      <Card className="border-dashed border-muted-foreground/30">
+        <CardContent className="p-4 text-center text-sm text-muted-foreground">
+          Nessun indirizzo email disponibile per questo ospite.
+        </CardContent>
+      </Card>
+    );
+  }
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Template</Label>
+  return (
+    <Card className="border-primary/20 bg-card">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Send className="h-4 w-4 text-primary" />
+          Rispondi a {booking.first_name}
+        </div>
+
+        {/* Template & Room selectors in a compact row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Template</Label>
             <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona un template (opzionale)" />
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Seleziona template" />
               </SelectTrigger>
               <SelectContent>
                 {templates?.map((t) => (
@@ -246,85 +250,99 @@ export function SendOfferDialog({ open, onOpenChange, booking, onSent }: SendOff
             </Select>
           </div>
 
-          {/* Room & Price Section */}
-          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Calculator className="h-4 w-4 text-primary" />
-              Calcolo Prezzo
-            </div>
-
-            <div className="space-y-2">
-              <Label>Camera</Label>
-              <Select value={selectedRoom} onValueChange={(val) => { setSelectedRoom(val); setManualPrice(""); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona camera per calcolo automatico" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rooms?.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {calculatedPrice && (
-              <div className="text-sm space-y-1 bg-background rounded-md p-2 border border-border">
-                <p className="font-medium">
-                  {selectedRoomName} — {calculatedPrice.nights} notti
-                </p>
-                {calculatedPrice.breakdown.map((b, i) => (
-                  <p key={i} className="text-muted-foreground">
-                    {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
-                  </p>
+          <div className="space-y-1">
+            <Label className="text-xs">Camera</Label>
+            <Select value={selectedRoom} onValueChange={(val) => { setSelectedRoom(val); setManualPrice(""); }}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Seleziona camera" />
+              </SelectTrigger>
+              <SelectContent>
+                {rooms?.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                 ))}
-                <p className="font-bold text-primary">
-                  Totale: €{calculatedPrice.total.toFixed(2)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Collapsible price section */}
+        {selectedRoom && (
+          <Collapsible open={priceOpen} onOpenChange={setPriceOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-xs font-medium text-primary hover:underline w-full">
+                <Calculator className="h-3.5 w-3.5" />
+                {calculatedPrice
+                  ? `Prezzo calcolato: €${calculatedPrice.total.toFixed(2)} (${calculatedPrice.nights} notti)`
+                  : "Dettagli prezzo"
+                }
+                {priceOpen ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2">
+              {calculatedPrice && (
+                <div className="text-xs space-y-1 bg-muted rounded-md p-2 border border-border">
+                  <p className="font-medium">{selectedRoomName} — {calculatedPrice.nights} notti</p>
+                  {calculatedPrice.breakdown.map((b, i) => (
+                    <p key={i} className="text-muted-foreground">
+                      {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
+                    </p>
+                  ))}
+                  <p className="font-bold text-primary">Totale: €{calculatedPrice.total.toFixed(2)}</p>
+                </div>
+              )}
+
+              {!calculatedPrice && roomPrices && (
+                <p className="text-xs text-destructive">
+                  Nessun listino disponibile per le date selezionate.
                 </p>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">Prezzo manuale</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                  placeholder={calculatedPrice ? `Calcolato: €${calculatedPrice.total.toFixed(2)}` : "Inserisci prezzo"}
+                  className="h-8 text-sm"
+                />
               </div>
-            )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
-            {selectedRoom && !calculatedPrice && roomPrices && (
-              <p className="text-sm text-destructive">
-                Nessun listino disponibile per le date selezionate.
-              </p>
-            )}
+        {/* Subject */}
+        <div className="space-y-1">
+          <Label className="text-xs">Oggetto</Label>
+          <Input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Oggetto dell'email"
+            className="h-9"
+          />
+        </div>
 
-            <div className="space-y-2">
-              <Label>Prezzo manuale (sovrascrive il calcolo)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={manualPrice}
-                onChange={(e) => setManualPrice(e.target.value)}
-                placeholder={calculatedPrice ? `Calcolato: €${calculatedPrice.total.toFixed(2)}` : "Inserisci prezzo"}
-              />
-            </div>
-          </div>
+        {/* Body */}
+        <Textarea
+          rows={6}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Scrivi il messaggio..."
+          className="text-sm"
+        />
 
-          <div className="space-y-2">
-            <Label>Destinatario</Label>
-            <Input value={booking.email || ""} disabled />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Oggetto</Label>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Oggetto dell'email" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Corpo Email</Label>
-            <Textarea rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Scrivi il contenuto dell'offerta..." />
-          </div>
-
-          <Button onClick={handleSend} disabled={sending} className="w-full">
+        {/* Send button */}
+        <div className="flex justify-end">
+          <Button onClick={handleSend} disabled={sending} size="sm">
             {sending ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Invio in corso...</>
+              <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Invio...</>
             ) : (
-              <><Send className="mr-2 h-4 w-4" />Invia Offerta</>
+              <><Send className="mr-2 h-3.5 w-3.5" />Invia</>
             )}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
 }
