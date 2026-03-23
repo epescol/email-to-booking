@@ -158,6 +158,8 @@ function calculateStayPrice(
 }
 
 export function InlineEmailComposer({ booking, accommodations, onSent }: InlineEmailComposerProps) {
+  const [autoSelected, setAutoSelected] = useState(false);
+
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);

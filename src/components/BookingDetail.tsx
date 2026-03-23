@@ -229,7 +229,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
               <CardTitle className="text-base">Conversazione</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <InlineEmailComposer booking={booking} onSent={handleMessageSent} />
+              <InlineEmailComposer booking={booking} accommodations={accommodations ?? []} onSent={handleMessageSent} />
               {!messages?.length ? (
                 <p className="text-sm text-muted-foreground">Nessun messaggio</p>
               ) : (
