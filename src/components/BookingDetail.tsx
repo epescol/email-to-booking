@@ -8,8 +8,6 @@ import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users } 
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 
 function stripQuotedContent(body: string | null): string {
@@ -39,10 +37,6 @@ interface BookingDetailProps {
   onBack: () => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: "nuova", label: "Nuova" },
-  { value: "presa_in_carico", label: "Presa in Carico" },
-];
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
@@ -85,18 +79,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
-  const handleStatusChange = async (newStatus: string) => {
-    const { error } = await supabase
-      .from("booking_requests")
-      .update({ status: newStatus })
-      .eq("id", bookingId);
-    if (error) {
-      toast.error("Errore nell'aggiornamento dello stato");
-    } else {
-      toast.success("Stato aggiornato");
-      refetch();
-    }
-  };
 
   const handleMessageSent = () => {
     refetch();
@@ -121,16 +103,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
           </p>
         </div>
         <StatusBadge status={booking.status} />
-        <Select value={booking.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
