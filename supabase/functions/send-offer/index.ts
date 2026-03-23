@@ -37,7 +37,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { booking_id, subject, body } = await req.json();
+    const { booking_id, subject, body, is_html } = await req.json();
 
     if (!booking_id || !subject || !body) {
       return new Response(
