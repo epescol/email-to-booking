@@ -77,7 +77,7 @@ export default function Templates() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl w-[95vw]">
             <DialogHeader>
               <DialogTitle>{editingId ? "Modifica Template" : "Nuovo Template"}</DialogTitle>
             </DialogHeader>
