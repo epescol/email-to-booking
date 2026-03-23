@@ -208,7 +208,7 @@ export default function Pricing() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="per_room">A camera</SelectItem>
+                <SelectItem value="per_room">A persona</SelectItem>
                 <SelectItem value="per_occupancy">A occupazione</SelectItem>
               </SelectContent>
             </Select>
