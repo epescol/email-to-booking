@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { Mail, Server, Shield, Webhook, Copy, CheckCheck } from "lucide-react";
+import RoomCardTemplateEditor from "@/components/RoomCardTemplateEditor";
 
 async function callEmailSettings(action: string, payload: Record<string, unknown> = {}) {
   const res = await supabase.functions.invoke("email-settings", {
@@ -149,6 +150,9 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Room Card Template */}
+      <RoomCardTemplateEditor />
 
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
