@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +68,18 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
         .select("*")
         .eq("request_id", bookingId)
         .order("sent_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: accommodations } = useQuery({
+    queryKey: ["booking_accommodations", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_accommodations")
+        .select("*")
+        .eq("request_id", bookingId);
       if (error) throw error;
       return data;
     },
@@ -157,7 +169,35 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             </CardContent>
           </Card>
 
-          {/* Conversation: inline composer + messages */}
+          {/* Camere richieste */}
+          {accommodations && accommodations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Camere Richieste</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {accommodations.map((acc) => (
+                  <div key={acc.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 text-sm">
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{acc.room_type || "Camera"}</span>
+                    </div>
+                    {acc.treatment && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Utensils className="h-3.5 w-3.5" />
+                        <span>{acc.treatment}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>{acc.adults || 1} adulti{acc.children ? `, ${acc.children} bambini` : ""}</span>
+                    </div>
+                    {acc.notes && <span className="text-muted-foreground italic">{acc.notes}</span>}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Conversazione</CardTitle>

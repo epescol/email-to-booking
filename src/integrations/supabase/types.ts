@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_accommodations: {
+        Row: {
+          adults: number | null
+          children: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          request_id: string
+          room_type: string | null
+          treatment: string | null
+        }
+        Insert: {
+          adults?: number | null
+          children?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id: string
+          room_type?: string | null
+          treatment?: string | null
+        }
+        Update: {
+          adults?: number | null
+          children?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id?: string
+          room_type?: string | null
+          treatment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_accommodations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "booking_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_messages: {
         Row: {
           body: string | null
