@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Mail, Pencil, Trash2 } from "lucide-react";
+import { Plus, Mail, Pencil, Trash2, Eye } from "lucide-react";
+import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -17,6 +17,7 @@ export default function Templates() {
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
 
@@ -91,9 +92,13 @@ export default function Templates() {
               </div>
               <div className="space-y-2">
                 <Label>Corpo Email</Label>
-                <Textarea rows={8} value={form.body_template} onChange={(e) => setForm({ ...form, body_template: e.target.value })} required placeholder="Gentile {{nome}},..." />
+                <WysiwygEditor
+                  content={form.body_template}
+                  onChange={(html) => setForm({ ...form, body_template: html })}
+                  placeholder="Scrivi il corpo del template..."
+                />
               </div>
-              <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}"}</p>
+              <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}"}</p>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salva</Button>
             </form>
           </DialogContent>
@@ -117,6 +122,9 @@ export default function Templates() {
                 <CardTitle className="text-base flex items-center justify-between">
                   {t.name}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewId(t.id)}>
+                      <Eye className="h-3 w-3" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                       setEditingId(t.id);
                       setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template });
@@ -132,11 +140,28 @@ export default function Templates() {
               </CardHeader>
               <CardContent>
                 {t.subject_template && <p className="text-sm font-medium text-muted-foreground mb-1">📧 {t.subject_template}</p>}
-                <p className="text-sm text-muted-foreground line-clamp-3">{t.body_template}</p>
+                <div className="text-sm text-muted-foreground line-clamp-3 [&_*]:text-sm [&_*]:text-muted-foreground" dangerouslySetInnerHTML={{ __html: t.body_template.substring(0, 300) }} />
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Preview dialog */}
+      {templates && (
+        <Dialog open={!!previewId} onOpenChange={(open) => { if (!open) setPreviewId(null); }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Anteprima: {templates.find(t => t.id === previewId)?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="border rounded-lg p-4 bg-white">
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: templates.find(t => t.id === previewId)?.body_template || "" }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
