@@ -71,7 +71,7 @@ export default function AdminUsers() {
           user_id: editingUser.user_id,
           email: form.email,
           display_name: form.display_name,
-          hotel_id: form.hotel_id || null,
+          hotel_name: form.hotel_name || null,
           role: form.role,
           ...(form.password ? { password: form.password } : {}),
         });
