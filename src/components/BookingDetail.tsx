@@ -185,7 +185,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                         <span>{format(new Date(msg.sent_at), "dd/MM/yy HH:mm")}</span>
                       </div>
                       {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
-                      <p className="whitespace-pre-wrap">{stripQuotedContent(msg.body)}</p>
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripQuotedContent(msg.body) }} />
                     </div>
                   ))}
                 </div>
