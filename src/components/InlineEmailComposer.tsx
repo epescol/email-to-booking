@@ -305,9 +305,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       const manual = parseFloat(sr.manualPrice);
       const price = !isNaN(manual) && manual > 0 ? manual.toFixed(2) : calc ? calc.total.toFixed(2) : null;
       const nights = calc ? calc.nights : null;
-      return generateRoomPreviewHtml(roomData, price, nights);
+      return generateRoomPreviewHtml(roomData, price, nights, hotelData?.room_card_template);
     }).join("");
-  }, [rooms, selectedRooms, roomCalculations]);
+  }, [rooms, selectedRooms, roomCalculations, hotelData?.room_card_template]);
 
   // Apply template
   useEffect(() => {
