@@ -106,7 +106,7 @@ serve(async (req) => {
               .select("id")
               .eq("hotel_id", hotelId)
               .eq("email", senderEmail)
-              .in("status", ["nuova", "offerta_inviata", "caparra_inviata"])
+              .in("status", ["nuova", "presa_in_carico"])
               .order("created_at", { ascending: false })
               .limit(1);
             if (existingReqs && existingReqs.length > 0) {

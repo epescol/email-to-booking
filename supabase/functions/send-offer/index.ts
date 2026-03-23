@@ -124,7 +124,7 @@ serve(async (req) => {
     if (booking.status === "nuova") {
       await supabase
         .from("booking_requests")
-        .update({ status: "offerta_inviata" })
+        .update({ status: "presa_in_carico" })
         .eq("id", booking_id);
     }
 
