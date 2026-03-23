@@ -153,6 +153,7 @@ interface SmtpConfig {
   to: string;
   subject: string;
   body: string;
+  isHtml: boolean;
   xHotelRequestId: string;
   ehloDomain: string;
   messageId: string;
