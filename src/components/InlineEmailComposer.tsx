@@ -117,8 +117,9 @@ function calculateStayPrice(
   checkIn: string,
   checkOut: string,
   periods: PricePeriod[],
-  roomPrices: RoomPrice[]
-): { total: number; nights: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
+  roomPrices: RoomPrice[],
+  guests: number = 1
+): { total: number; nights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
   try {
     const startDate = parseISO(checkIn);
     const endDate = parseISO(checkOut);
@@ -150,10 +151,10 @@ function calculateStayPrice(
 
     const breakdown = Array.from(breakdownMap.values()).map(b => ({
       ...b,
-      subtotal: b.nights * b.pricePerNight,
+      subtotal: b.nights * b.pricePerNight * guests,
     }));
 
-    return { total, nights: coveredNights, breakdown };
+    return { total: total * guests, nights: coveredNights, guests, breakdown };
   } catch {
     return null;
   }
@@ -262,7 +263,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       } else {
         filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
       }
-      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices);
+      const guests = pricingMode === "per_room" ? (sr.occupancy || 1) : 1;
+      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices, guests);
     }
     return result;
   }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms, pricingMode]);
@@ -444,7 +446,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     </Button>
                   </div>
 
-                  {pricingMode === "per_occupancy" && room && (
+                  {room && (
                     <div className="space-y-1">
                       <Label className="text-xs">Occupazione</Label>
                       <Select
@@ -472,7 +474,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     <div className="text-xs space-y-0.5">
                       {calc.breakdown.map((b, i) => (
                         <p key={i} className="text-muted-foreground">
-                          {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
+                          {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)}{calc.guests > 1 ? ` × ${calc.guests} pers.` : ""} = €{b.subtotal.toFixed(2)}
                         </p>
                       ))}
                       <p className="font-semibold text-primary">Totale: €{calc.total.toFixed(2)}</p>
