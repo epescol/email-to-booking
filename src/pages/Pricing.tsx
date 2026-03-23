@@ -278,7 +278,7 @@ export default function Pricing() {
               Cambiare modalità prezzi?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Passando alla modalità "{confirmModeChange === "per_room" ? "A camera" : "A occupazione"}",{" "}
+              Passando alla modalità "{confirmModeChange === "per_room" ? "A persona" : "A occupazione"}",{" "}
               <strong>tutti i prezzi esistenti verranno eliminati</strong> e dovrai reinserirli. Questa azione è
               irreversibile.
             </AlertDialogDescription>
