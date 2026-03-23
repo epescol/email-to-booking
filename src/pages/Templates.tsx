@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Mail, Pencil, Trash2, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft } from "lucide-react";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,10 +16,12 @@ export default function Templates() {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
+
+  const isEditorOpen = isCreating || !!editingId;
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["offer_templates"],
@@ -44,9 +46,7 @@ export default function Templates() {
     onSuccess: () => {
       toast.success(editingId ? "Template aggiornato" : "Template creato");
       queryClient.invalidateQueries({ queryKey: ["offer_templates"] });
-      setDialogOpen(false);
-      setEditingId(null);
-      setForm({ name: "", subject_template: "", body_template: "" });
+      closeEditor();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -63,6 +63,77 @@ export default function Templates() {
     onError: (e) => toast.error(e.message),
   });
 
+  const closeEditor = () => {
+    setEditingId(null);
+    setIsCreating(false);
+    setForm({ name: "", subject_template: "", body_template: "" });
+  };
+
+  const openEdit = (t: any) => {
+    setEditingId(t.id);
+    setIsCreating(false);
+    setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template });
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    setIsCreating(true);
+    setForm({ name: "", subject_template: "", body_template: "" });
+  };
+
+  // Editor view
+  if (isEditorOpen) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={closeEditor}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {editingId ? "Modifica Template" : "Nuovo Template"}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {editingId ? "Modifica il template esistente" : "Crea un nuovo modello per le offerte"}
+            </p>
+          </div>
+        </div>
+
+        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nome Template</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Oggetto Email</Label>
+              <Input value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} placeholder="Offerta per il soggiorno dal {{check_in}} al {{check_out}}" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Corpo Email</Label>
+            <WysiwygEditor
+              content={form.body_template}
+              onChange={(html) => setForm({ ...form, body_template: html })}
+              placeholder="Scrivi il corpo del template..."
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}"}
+          </p>
+
+          <div className="flex gap-3">
+            <Button type="submit" disabled={saveMutation.isPending}>Salva Template</Button>
+            <Button type="button" variant="outline" onClick={closeEditor}>Annulla</Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // List view
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -70,39 +141,7 @@ export default function Templates() {
           <h1 className="text-2xl font-bold tracking-tight">Template Email</h1>
           <p className="text-muted-foreground text-sm">Modelli per le offerte da inviare</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) { setEditingId(null); setForm({ name: "", subject_template: "", body_template: "" }); }
-        }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl w-[95vw]">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Modifica Template" : "Nuovo Template"}</DialogTitle>
-            </DialogHeader>
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}>
-              <div className="space-y-2">
-                <Label>Nome Template</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Oggetto Email</Label>
-                <Input value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} placeholder="Offerta per il soggiorno dal {{check_in}} al {{check_out}}" />
-              </div>
-              <div className="space-y-2">
-                <Label>Corpo Email</Label>
-                <WysiwygEditor
-                  content={form.body_template}
-                  onChange={(html) => setForm({ ...form, body_template: html })}
-                  placeholder="Scrivi il corpo del template..."
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}"}</p>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salva</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
       </div>
 
       {isLoading ? (
@@ -125,11 +164,7 @@ export default function Templates() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewId(t.id)}>
                       <Eye className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                      setEditingId(t.id);
-                      setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template });
-                      setDialogOpen(true);
-                    }}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(t.id)}>
