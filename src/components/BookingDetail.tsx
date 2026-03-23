@@ -9,8 +9,6 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
-import { toast } from "sonner";
-import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 
 function stripQuotedContent(body: string | null): string {
   if (!body) return "";
