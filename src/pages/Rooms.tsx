@@ -10,6 +10,7 @@ import { Plus, BedDouble, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
 
 interface RoomForm {
   name: string;
