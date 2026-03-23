@@ -154,6 +154,7 @@ interface SmtpConfig {
   body: string;
   xHotelRequestId: string;
   ehloDomain: string;
+  messageId: string;
 }
 
 async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
