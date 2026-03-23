@@ -79,13 +79,11 @@ serve(async (req) => {
           const refsToCheck: string[] = [];
           if (email.in_reply_to) refsToCheck.push(email.in_reply_to.trim());
           if (email.references) {
-            // References can contain multiple message IDs separated by spaces
             const refs = email.references.split(/\s+/).map((r: string) => r.trim()).filter(Boolean);
             refsToCheck.push(...refs);
           }
 
           if (refsToCheck.length > 0) {
-            // Look for any of these message IDs in our outbound messages
             const { data: matchedMsg } = await supabase
               .from("booking_messages")
               .select("request_id")
@@ -146,6 +144,20 @@ serve(async (req) => {
             continue;
           }
           requestId = newReq.id;
+        }
+
+        // Insert accommodations if parsed
+        if (parsed.accommodations && parsed.accommodations.length > 0 && requestId) {
+          for (const acc of parsed.accommodations) {
+            await supabase.from("booking_accommodations").insert({
+              request_id: requestId,
+              room_type: acc.room_type || null,
+              treatment: acc.treatment || null,
+              adults: acc.adults || 1,
+              children: acc.children || 0,
+              notes: acc.notes || null,
+            });
+          }
         }
 
         // Insert the message
@@ -233,6 +245,14 @@ function extractEmailFromField(from: string | undefined): string | null {
 
 // ---- AI Parsing ----
 
+interface ParsedAccommodation {
+  room_type?: string;
+  treatment?: string;
+  adults?: number;
+  children?: number;
+  notes?: string;
+}
+
 interface ParsedBooking {
   first_name?: string;
   last_name?: string;
@@ -248,6 +268,7 @@ interface ParsedBooking {
   city?: string;
   country?: string;
   zip_code?: string;
+  accommodations?: ParsedAccommodation[];
 }
 
 async function parseBookingWithAI(
@@ -261,7 +282,8 @@ DA: ${email.from || ""}
 CORPO:
 ${(email.body || "").substring(0, 4000)}
 
-Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.`;
+Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.
+IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, numero adulti/bambini).`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -296,12 +318,26 @@ Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.`;
                 check_out: { type: "string", description: "Data check-out in formato YYYY-MM-DD" },
                 notes: { type: "string", description: "Note o richieste speciali" },
                 language: { type: "string", description: "Lingua dell'ospite (it, de, en, ecc.)" },
-                alternative_dates: { type: "string", description: "Date alternative richieste" },
-                gender: { type: "string", description: "Genere (M/F)" },
+                alternative_dates: { type: "string", description: "Date alternative richieste dall'ospite, se menzionate" },
+                gender: { type: "string", description: "Genere (M/F) dedotto da salutation Mr./Mrs./Sig./Sig.ra" },
                 address: { type: "string", description: "Indirizzo" },
                 city: { type: "string", description: "Città" },
                 country: { type: "string", description: "Paese" },
                 zip_code: { type: "string", description: "CAP" },
+                accommodations: {
+                  type: "array",
+                  description: "Lista delle camere/alloggi richiesti",
+                  items: {
+                    type: "object",
+                    properties: {
+                      room_type: { type: "string", description: "Tipo di camera richiesta (es. Doppia, Suite, ecc.)" },
+                      treatment: { type: "string", description: "Trattamento richiesto (es. bed and breakfast, mezza pensione, pensione completa)" },
+                      adults: { type: "number", description: "Numero di adulti" },
+                      children: { type: "number", description: "Numero di bambini" },
+                      notes: { type: "string", description: "Note specifiche per questa camera" },
+                    },
+                  },
+                },
               },
               required: [],
               additionalProperties: false,
