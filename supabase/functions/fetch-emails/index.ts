@@ -14,19 +14,15 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-
-    // Determine mode: "webhook" (external service pushes emails) or "manual" (user triggers from dashboard)
     const mode = body.mode || "webhook";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (mode === "webhook") {
-      // --- WEBHOOK MODE: External service (Zapier/Make/n8n) pushes email data ---
       // Validate webhook secret
       const webhookSecret = Deno.env.get("FETCH_EMAILS_WEBHOOK_SECRET");
       const providedSecret = req.headers.get("x-webhook-secret") || body.webhook_secret;
-
       if (webhookSecret && providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
           status: 401,
@@ -34,12 +30,9 @@ serve(async (req) => {
         });
       }
 
-      // Expected body format:
-      // { emails: [{ subject, body, from, date, message_id, x_hotel_request_id? }], hotel_id: "..." }
-      // OR single email: { subject, body, from, date, message_id, hotel_id }
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      let hotelId = body.hotel_id;
+      const hotelId = body.hotel_id;
       if (!hotelId) {
         return new Response(JSON.stringify({ error: "hotel_id is required" }), {
           status: 400,
@@ -61,15 +54,16 @@ serve(async (req) => {
           .select("id")
           .eq("email_message_id", messageId)
           .maybeSingle();
-
         if (existing) continue;
 
         // Parse with AI
         const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
         if (!parsed) continue;
 
-        // Check for existing request via X-Hotel-Request-ID
+        // --- THREADING: try to find existing request ---
         let requestId: string | null = null;
+
+        // 1. Check X-Hotel-Request-ID header
         if (email.x_hotel_request_id) {
           const { data: existingReq } = await supabase
             .from("booking_messages")
@@ -80,7 +74,48 @@ serve(async (req) => {
           if (existingReq) requestId = existingReq.request_id;
         }
 
-        // Create new request if needed
+        // 2. Check In-Reply-To / References headers against our sent message IDs
+        if (!requestId && (email.in_reply_to || email.references)) {
+          const refsToCheck: string[] = [];
+          if (email.in_reply_to) refsToCheck.push(email.in_reply_to.trim());
+          if (email.references) {
+            // References can contain multiple message IDs separated by spaces
+            const refs = email.references.split(/\s+/).map((r: string) => r.trim()).filter(Boolean);
+            refsToCheck.push(...refs);
+          }
+
+          if (refsToCheck.length > 0) {
+            // Look for any of these message IDs in our outbound messages
+            const { data: matchedMsg } = await supabase
+              .from("booking_messages")
+              .select("request_id")
+              .eq("direction", "outbound")
+              .in("email_message_id", refsToCheck)
+              .limit(1)
+              .maybeSingle();
+            if (matchedMsg) requestId = matchedMsg.request_id;
+          }
+        }
+
+        // 3. Fallback: match by sender email + hotel to find existing request
+        if (!requestId && (parsed.email || email.from)) {
+          const senderEmail = parsed.email || extractEmailFromField(email.from);
+          if (senderEmail) {
+            const { data: existingReqs } = await supabase
+              .from("booking_requests")
+              .select("id")
+              .eq("hotel_id", hotelId)
+              .eq("email", senderEmail)
+              .in("status", ["nuova", "offerta_inviata", "caparra_inviata"])
+              .order("created_at", { ascending: false })
+              .limit(1);
+            if (existingReqs && existingReqs.length > 0) {
+              requestId = existingReqs[0].id;
+            }
+          }
+        }
+
+        // Create new request only if no match found
         if (!requestId) {
           const { data: newReq, error: reqError } = await supabase
             .from("booking_requests")
@@ -132,7 +167,7 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // --- MANUAL MODE: User triggers from dashboard (returns webhook info) ---
+      // --- MANUAL MODE ---
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -167,26 +202,12 @@ serve(async (req) => {
         });
       }
 
-      // Return webhook configuration info
       const webhookUrl = `${supabaseUrl}/functions/v1/fetch-emails`;
       return new Response(
         JSON.stringify({
           message: "Usa un servizio esterno (Zapier, Make, n8n) per inviare le email a questo webhook.",
           webhook_url: webhookUrl,
           hotel_id: profile.hotel_id,
-          example_payload: {
-            mode: "webhook",
-            hotel_id: profile.hotel_id,
-            emails: [
-              {
-                subject: "Richiesta prenotazione",
-                body: "Testo dell'email...",
-                from: "cliente@esempio.com",
-                date: "2026-03-23T10:00:00Z",
-                message_id: "unique-message-id",
-              },
-            ],
-          },
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -199,6 +220,16 @@ serve(async (req) => {
     );
   }
 });
+
+// ---- Helpers ----
+
+function extractEmailFromField(from: string | undefined): string | null {
+  if (!from) return null;
+  const match = from.match(/<([^>]+)>/);
+  if (match) return match[1].toLowerCase();
+  if (from.includes("@")) return from.trim().toLowerCase();
+  return null;
+}
 
 // ---- AI Parsing ----
 
