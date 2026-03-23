@@ -51,7 +51,29 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { email, password, display_name, hotel_id, role } = payload;
+      const { email, password, display_name, hotel_name, role } = payload;
+
+      // Create or find hotel by name
+      let hotel_id: string | null = null;
+      if (hotel_name) {
+        const { data: existing } = await supabaseAdmin
+          .from("hotels")
+          .select("id")
+          .eq("name", hotel_name)
+          .maybeSingle();
+        if (existing) {
+          hotel_id = existing.id;
+        } else {
+          const { data: newHotel, error: hotelErr } = await supabaseAdmin
+            .from("hotels")
+            .insert({ name: hotel_name })
+            .select("id")
+            .single();
+          if (hotelErr) throw hotelErr;
+          hotel_id = newHotel.id;
+        }
+      }
+
       // Create auth user
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -83,7 +105,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const { user_id, email, display_name, hotel_id, role, password } = payload;
+      const { user_id, email, display_name, hotel_name, role, password } = payload;
       
       // Update auth user
       const updateData: Record<string, unknown> = {};
@@ -96,11 +118,32 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
 
+      // Resolve hotel by name
+      let hotel_id: string | null = null;
+      if (hotel_name) {
+        const { data: existing } = await supabaseAdmin
+          .from("hotels")
+          .select("id")
+          .eq("name", hotel_name)
+          .maybeSingle();
+        if (existing) {
+          hotel_id = existing.id;
+        } else {
+          const { data: newHotel, error: hotelErr } = await supabaseAdmin
+            .from("hotels")
+            .insert({ name: hotel_name })
+            .select("id")
+            .single();
+          if (hotelErr) throw hotelErr;
+          hotel_id = newHotel.id;
+        }
+      }
+
       // Update profile
       const profileUpdate: Record<string, unknown> = {};
       if (display_name) profileUpdate.display_name = display_name;
       if (email) profileUpdate.email = email;
-      if (hotel_id !== undefined) profileUpdate.hotel_id = hotel_id;
+      if (hotel_name !== undefined) profileUpdate.hotel_id = hotel_id;
 
       if (Object.keys(profileUpdate).length > 0) {
         await supabaseAdmin.from("profiles").update(profileUpdate).eq("user_id", user_id);

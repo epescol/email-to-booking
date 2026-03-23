@@ -29,11 +29,11 @@ interface UserFormData {
   email: string;
   password: string;
   display_name: string;
-  hotel_id: string;
+  hotel_name: string;
   role: string;
 }
 
-const emptyForm: UserFormData = { email: "", password: "", display_name: "", hotel_id: "", role: "user" };
+const emptyForm: UserFormData = { email: "", password: "", display_name: "", hotel_name: "", role: "user" };
 
 async function callAdminUsers(action: string, payload: Record<string, unknown> = {}) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -62,14 +62,7 @@ export default function AdminUsers() {
     enabled: isAdmin,
   });
 
-  const { data: hotels = [] } = useQuery({
-    queryKey: ["hotels-list"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name");
-      return data || [];
-    },
-    enabled: isAdmin,
-  });
+  // Hotels list no longer needed for dropdown
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -78,7 +71,7 @@ export default function AdminUsers() {
           user_id: editingUser.user_id,
           email: form.email,
           display_name: form.display_name,
-          hotel_id: form.hotel_id || null,
+          hotel_name: form.hotel_name || null,
           role: form.role,
           ...(form.password ? { password: form.password } : {}),
         });
@@ -87,7 +80,7 @@ export default function AdminUsers() {
           email: form.email,
           password: form.password,
           display_name: form.display_name,
-          hotel_id: form.hotel_id || null,
+          hotel_name: form.hotel_name || null,
           role: form.role,
         });
       }
@@ -123,7 +116,7 @@ export default function AdminUsers() {
       email: u.email || "",
       password: "",
       display_name: u.display_name || "",
-      hotel_id: u.hotel_id || "",
+      hotel_name: u.hotels?.name || "",
       role: u.user_roles?.[0]?.role || "user",
     });
     setDialogOpen(true);
@@ -239,17 +232,8 @@ export default function AdminUsers() {
               <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Hotel</Label>
-              <Select value={form.hotel_id} onValueChange={(v) => setForm({ ...form, hotel_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona hotel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotels.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Nome Hotel</Label>
+              <Input value={form.hotel_name} onChange={(e) => setForm({ ...form, hotel_name: e.target.value })} placeholder="Es. Hotel Bellavista" />
             </div>
             <div className="space-y-2">
               <Label>Ruolo</Label>
