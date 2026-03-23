@@ -254,7 +254,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
       `To: ${config.to}`,
       `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(config.subject)))}?=`,
       `Date: ${now}`,
-      `Message-ID: ${messageId}`,
+      `Message-ID: ${config.messageId}`,
       `X-Hotel-Request-ID: ${config.xHotelRequestId}`,
       `MIME-Version: 1.0`,
       `Content-Type: text/plain; charset=UTF-8`,
