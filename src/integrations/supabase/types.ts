@@ -503,6 +503,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrypt_value: {
+        Args: { _ciphertext: string; _key: string }
+        Returns: string
+      }
+      encrypt_value: {
+        Args: { _key: string; _plaintext: string }
+        Returns: string
+      }
       get_user_hotel_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

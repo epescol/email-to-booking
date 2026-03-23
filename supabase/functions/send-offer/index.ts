@@ -93,6 +93,24 @@ serve(async (req) => {
       );
     }
 
+    // Decrypt SMTP password
+    const encryptionKey = Deno.env.get("EMAIL_ENCRYPTION_KEY");
+    let smtpPassword = settings.smtp_password;
+    if (encryptionKey) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      try {
+        const { data, error } = await adminClient.rpc("decrypt_value", {
+          _ciphertext: settings.smtp_password,
+          _key: encryptionKey,
+        });
+        if (!error && data) smtpPassword = data;
+      } catch {
+        // If decryption fails, assume plaintext (pre-migration)
+      }
+    }
+
     const xHotelRequestId = `${booking_id}`;
     const senderDomain = settings.smtp_user.split("@")[1] || settings.smtp_host;
     const outboundMessageId = `<${crypto.randomUUID()}@${senderDomain}>`;
@@ -101,7 +119,7 @@ serve(async (req) => {
       host: settings.smtp_host,
       port: settings.smtp_port || 587,
       username: settings.smtp_user,
-      password: settings.smtp_password,
+      password: smtpPassword,
       from: settings.smtp_user,
       to: booking.email,
       subject,
