@@ -446,7 +446,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     </Button>
                   </div>
 
-                  {pricingMode === "per_occupancy" && room && (
+                  {room && (
                     <div className="space-y-1">
                       <Label className="text-xs">Occupazione</Label>
                       <Select
