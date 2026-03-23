@@ -14,9 +14,7 @@ import { BookingDetail } from "@/components/BookingDetail";
 
 const STATUSES = [
   { value: "nuova", label: "Nuove", icon: Mail },
-  { value: "offerta_inviata", label: "Offerta Inviata", icon: Calendar },
-  { value: "caparra_inviata", label: "Caparra Inviata", icon: Calendar },
-  { value: "confermata", label: "Confermate", icon: Calendar },
+  { value: "presa_in_carico", label: "Prese in Carico", icon: Calendar },
 ];
 
 export default function Dashboard() {
