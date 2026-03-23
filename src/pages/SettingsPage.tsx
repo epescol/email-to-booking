@@ -12,6 +12,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { Mail, Server, Shield, Webhook, Copy, CheckCheck } from "lucide-react";
 
+async function callEmailSettings(action: string, payload: Record<string, unknown> = {}) {
+  const res = await supabase.functions.invoke("email-settings", {
+    body: { action, ...payload },
+  });
+  if (res.error) throw new Error(res.error.message);
+  return res.data;
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
@@ -19,11 +27,7 @@ export default function SettingsPage() {
 
   const { data: settings } = useQuery({
     queryKey: ["email_settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("hotel_email_settings").select("*").maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => callEmailSettings("get"),
     enabled: !!profile?.hotel_id,
   });
 
@@ -52,16 +56,7 @@ export default function SettingsPage() {
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
-      if (settings) {
-        const { error } = await supabase.from("hotel_email_settings").update(form).eq("id", settings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("hotel_email_settings").insert({ ...form, hotel_id: profile.hotel_id });
-        if (error) throw error;
-      }
-    },
+    mutationFn: () => callEmailSettings("save", form),
     onSuccess: () => {
       toast.success("Impostazioni salvate");
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
@@ -114,56 +109,35 @@ export default function SettingsPage() {
             <Label>Webhook URL</Label>
             <div className="flex gap-2">
               <Input value={webhookUrl} readOnly className="font-mono text-xs bg-muted" />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => copyToClipboard(webhookUrl, "URL")}
-              >
+              <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(webhookUrl, "URL")}>
                 {copied === "URL" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>
-
           <div className="space-y-2">
             <Label>Hotel ID</Label>
             <div className="flex gap-2">
               <Input value={profile?.hotel_id || "—"} readOnly className="font-mono text-xs bg-muted" />
               {profile?.hotel_id && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(profile.hotel_id!, "Hotel ID")}
-                >
+                <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(profile.hotel_id!, "Hotel ID")}>
                   {copied === "Hotel ID" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                 </Button>
               )}
             </div>
           </div>
-
           <Separator />
-
           <div className="space-y-2">
             <Label>Payload di esempio (JSON)</Label>
             <div className="relative">
               <pre className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
                 {examplePayload}
               </pre>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2"
-                onClick={() => copyToClipboard(examplePayload, "Payload")}
-              >
+              <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => copyToClipboard(examplePayload, "Payload")}>
                 {copied === "Payload" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>
-
           <Separator />
-
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-medium">Istruzioni per n8n:</p>
             <ol className="list-decimal list-inside space-y-1">
@@ -187,12 +161,7 @@ export default function SettingsPage() {
           <CardContent>
             <div className="space-y-2">
               <Label>Email Mittente Filtro</Label>
-              <Input
-                type="email"
-                value={form.filter_sender_email}
-                onChange={(e) => setForm({ ...form, filter_sender_email: e.target.value })}
-                placeholder="notifiche@ilmiohotel.com"
-              />
+              <Input type="email" value={form.filter_sender_email} onChange={(e) => setForm({ ...form, filter_sender_email: e.target.value })} placeholder="notifiche@ilmiohotel.com" />
             </div>
           </CardContent>
         </Card>
