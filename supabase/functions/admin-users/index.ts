@@ -40,12 +40,24 @@ Deno.serve(async (req) => {
     const { action, ...payload } = await req.json();
 
     if (action === "list") {
-      // List all profiles with roles and hotel info
-      const { data: profiles, error } = await supabaseAdmin
+      // Query profiles, roles, and hotels separately (no FK between profiles and user_roles)
+      const { data: profiles, error: pErr } = await supabaseAdmin
         .from("profiles")
-        .select("*, user_roles(*), hotels(name)");
-      if (error) throw error;
-      return new Response(JSON.stringify(profiles), {
+        .select("*, hotels(name)");
+      if (pErr) throw pErr;
+
+      const { data: allRoles, error: rErr } = await supabaseAdmin
+        .from("user_roles")
+        .select("*");
+      if (rErr) throw rErr;
+
+      // Merge roles into profiles
+      const result = (profiles || []).map((p: Record<string, unknown>) => ({
+        ...p,
+        user_roles: (allRoles || []).filter((r: Record<string, unknown>) => r.user_id === p.user_id),
+      }));
+
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
