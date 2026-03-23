@@ -256,8 +256,13 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     if (!booking.check_in || !booking.check_out || !pricePeriods || !allRoomPrices) return {};
     const result: Record<string, ReturnType<typeof calculateStayPrice>> = {};
     for (const sr of selectedRooms) {
-      const prices = allRoomPrices.filter(rp => rp.room_id === sr.roomId);
-      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, prices);
+      let filteredPrices: RoomPrice[];
+      if (pricingMode === "per_occupancy" && sr.occupancy) {
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy);
+      } else {
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
+      }
+      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices);
     }
     return result;
   }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms]);
