@@ -474,7 +474,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     <div className="text-xs space-y-0.5">
                       {calc.breakdown.map((b, i) => (
                         <p key={i} className="text-muted-foreground">
-                          {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
+                          {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)}{calc.guests > 1 ? ` × ${calc.guests} pers.` : ""} = €{b.subtotal.toFixed(2)}
                         </p>
                       ))}
                       <p className="font-semibold text-primary">Totale: €{calc.total.toFixed(2)}</p>
