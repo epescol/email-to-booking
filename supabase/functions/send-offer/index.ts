@@ -106,6 +106,7 @@ serve(async (req) => {
       to: booking.email,
       subject,
       body,
+      isHtml: is_html === true,
       xHotelRequestId,
       ehloDomain: senderDomain,
       messageId: outboundMessageId,
