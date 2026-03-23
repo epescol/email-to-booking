@@ -142,7 +142,7 @@ export default function Dashboard() {
                           <TableCell>{b.check_in ? format(new Date(b.check_in), "dd MMM yyyy", { locale: it }) : "-"}</TableCell>
                           <TableCell>{b.check_out ? format(new Date(b.check_out), "dd MMM yyyy", { locale: it }) : "-"}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{b.email || "-"}</TableCell>
-                          <TableCell><StatusBadge status={b.status} /></TableCell>
+                          
                           <TableCell className="text-muted-foreground text-sm">
                             {format(new Date(b.created_at), "dd/MM/yy HH:mm")}
                           </TableCell>

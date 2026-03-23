@@ -102,7 +102,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
-        <StatusBadge status={booking.status} />
+        
       </div>
 
       <div className="grid grid-cols-1 gap-6">
