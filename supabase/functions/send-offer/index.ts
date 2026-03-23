@@ -259,7 +259,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
       `Message-ID: ${config.messageId}`,
       `X-Hotel-Request-ID: ${config.xHotelRequestId}`,
       `MIME-Version: 1.0`,
-      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Type: ${config.isHtml ? "text/html" : "text/plain"}; charset=UTF-8`,
       `Content-Transfer-Encoding: base64`,
       ``,
       btoa(unescape(encodeURIComponent(config.body))),
