@@ -81,37 +81,26 @@ interface RoomData {
 function generateRoomPreviewHtml(
   roomData: RoomData,
   price: string | null,
-  nights: number | null
+  nights: number | null,
+  customTemplate?: string | null
 ): string {
   const photos = [roomData.photo_url_1, roomData.photo_url_2, roomData.photo_url_3, roomData.photo_url_4].filter(Boolean);
   
-  const photoHtml = photos.length > 0
-    ? `<img src="${photos[0]}" alt="${roomData.name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px 12px 0 0;display:block;" />`
-    : "";
-
   const detailParts: string[] = [];
   if (roomData.beds) detailParts.push(`🛏️ ${roomData.beds}`);
   detailParts.push(`👤 ${roomData.min_occupancy}-${roomData.max_occupancy} ospiti`);
-  
-  const priceHtml = price
-    ? `<td style="text-align:right;vertical-align:middle;">
-        <p style="margin:0;font-size:24px;font-weight:800;color:#1e3a5f;">€${price}</p>
-        ${nights ? `<p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">${nights} notti</p>` : ""}
-       </td>`
-    : "";
 
-  const linkHtml = roomData.site_url
-    ? `<a href="${roomData.site_url}" style="display:inline-block;margin-top:8px;color:#2563eb;text-decoration:none;font-size:13px;font-weight:500;">Scopri di più →</a>`
-    : "";
+  const data: Record<string, string> = {
+    nome_camera: roomData.name,
+    dettagli: detailParts.join(" \u00a0·\u00a0 "),
+  };
+  if (photos[0]) data.foto = photos[0];
+  if (price) data.prezzo = price;
+  if (nights) data.notti = String(nights);
+  if (roomData.site_url) data.link = roomData.site_url;
 
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-  ${photoHtml ? `<tr><td colspan="2">${photoHtml}</td></tr>` : ""}
-  <tr><td style="padding:16px 20px;" ${priceHtml ? '' : 'colspan="2"'}>
-    <p style="margin:0 0 6px;font-size:17px;font-weight:700;color:#1e293b;">${roomData.name}</p>
-    <p style="margin:0;font-size:13px;color:#64748b;">${detailParts.join(" &nbsp;·&nbsp; ")}</p>
-    ${linkHtml}
-  </td>${priceHtml}</tr>
-</table>`;
+  const tpl = customTemplate || DEFAULT_ROOM_CARD_TEMPLATE;
+  return renderTemplate(tpl, data);
 }
 
 function calculateStayPrice(
