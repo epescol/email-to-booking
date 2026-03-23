@@ -13,6 +13,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 
+interface BookingAccommodation {
+  id: string;
+  room_type: string | null;
+  treatment: string | null;
+  adults: number | null;
+  children: number | null;
+  notes: string | null;
+}
+
 interface InlineEmailComposerProps {
   booking: {
     id: string;
@@ -22,6 +31,7 @@ interface InlineEmailComposerProps {
     check_in: string | null;
     check_out: string | null;
   };
+  accommodations?: BookingAccommodation[];
   onSent: () => void;
 }
 
@@ -147,7 +157,9 @@ function calculateStayPrice(
   }
 }
 
-export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProps) {
+export function InlineEmailComposer({ booking, accommodations, onSent }: InlineEmailComposerProps) {
+  const [autoSelected, setAutoSelected] = useState(false);
+
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -184,6 +196,31 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
       return data;
     },
   });
+
+  // Auto-select rooms based on booking accommodations
+  useEffect(() => {
+    if (autoSelected || !rooms || rooms.length === 0 || !accommodations || accommodations.length === 0) return;
+    
+    const matched: SelectedRoom[] = [];
+    for (const acc of accommodations) {
+      if (!acc.room_type) continue;
+      const normalizedType = acc.room_type.toLowerCase().trim();
+      const matchedRoom = rooms.find(r => 
+        r.name.toLowerCase().trim() === normalizedType ||
+        r.name.toLowerCase().trim().includes(normalizedType) ||
+        normalizedType.includes(r.name.toLowerCase().trim())
+      );
+      if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
+        matched.push({ roomId: matchedRoom.id, manualPrice: "" });
+      }
+    }
+    
+    if (matched.length > 0) {
+      setSelectedRooms(matched);
+      setPriceOpen(true);
+    }
+    setAutoSelected(true);
+  }, [rooms, accommodations, autoSelected]);
 
   // Fetch prices for all selected rooms at once
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
