@@ -22,74 +22,10 @@ const STATUSES = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [fetchingEmails, setFetchingEmails] = useState(false);
-  const queryClient = useQueryClient();
-
-  const { data: bookings, isLoading, refetch } = useQuery({
-    queryKey: ["booking_requests", activeTab],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("booking_requests")
-        .select("*")
-        .eq("status", activeTab)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: counts } = useQuery({
-    queryKey: ["booking_counts"],
-    queryFn: async () => {
-      const results: Record<string, number> = {};
-      for (const s of STATUSES) {
-        const { count, error } = await supabase
-          .from("booking_requests")
-          .select("*", { count: "exact", head: true })
-          .eq("status", s.value);
-        if (!error) results[s.value] = count || 0;
-      }
-      return results;
-    },
-  });
-
-  const handleFetchEmails = async () => {
-    setFetchingEmails(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Devi essere autenticato");
-        return;
-      }
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-emails`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ mode: "manual" }),
-        }
-      );
-      const result = await response.json();
-      if (!response.ok) {
-        toast.error(result.error || "Errore durante l'importazione");
-      } else {
-        // Show webhook info
-        const webhookUrl = result.webhook_url;
-        toast.success(
-          `Webhook URL: ${webhookUrl}\n\nConfigura Zapier/Make/n8n per inviare le email a questo endpoint.`,
-          { duration: 15000 }
-        );
-        refetch();
-        queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
-      }
-    } catch (e) {
-      toast.error("Errore di connessione");
-    } finally {
-      setFetchingEmails(false);
-    }
+  const handleRefresh = () => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+    toast.success("Dati aggiornati");
   };
 
   if (selectedBookingId) {
