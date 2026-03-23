@@ -117,7 +117,10 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
   const { data: rooms } = useQuery({
     queryKey: ["rooms_for_offer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("rooms").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("id, name, beds, min_occupancy, max_occupancy, photo_url_1, photo_url_2, photo_url_3, photo_url_4, site_url")
+        .order("name");
       if (error) throw error;
       return data;
     },
