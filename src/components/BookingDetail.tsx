@@ -109,106 +109,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Dettagli Soggiorno</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Check-in</p>
-                  <p className="font-medium">{booking.check_in ? format(new Date(booking.check_in), "dd MMM yyyy", { locale: it }) : "-"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Check-out</p>
-                  <p className="font-medium">{booking.check_out ? format(new Date(booking.check_out), "dd MMM yyyy", { locale: it }) : "-"}</p>
-                </div>
-              </div>
-              {booking.alternative_dates && (
-                <div className="col-span-2">
-                  <p className="text-muted-foreground">Date Alternative</p>
-                  <p className="font-medium">{booking.alternative_dates}</p>
-                </div>
-              )}
-              {booking.notes && (
-                <div className="col-span-2">
-                  <p className="text-muted-foreground">Note</p>
-                  <p className="font-medium">{booking.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Camere richieste */}
-          {accommodations && accommodations.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Camere Richieste</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {accommodations.map((acc) => (
-                  <div key={acc.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 text-sm">
-                    <div className="flex items-center gap-2">
-                      <BedDouble className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{acc.room_type || "Camera"}</span>
-                    </div>
-                    {acc.treatment && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Utensils className="h-3.5 w-3.5" />
-                        <span>{acc.treatment}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                      <span>{acc.adults || 1} adulti{acc.children ? `, ${acc.children} bambini` : ""}</span>
-                    </div>
-                    {acc.notes && <span className="text-muted-foreground italic">{acc.notes}</span>}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Conversazione</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Inline email composer at the top */}
-              <InlineEmailComposer booking={booking} onSent={handleMessageSent} />
-
-              {/* Message history */}
-              {!messages?.length ? (
-                <p className="text-sm text-muted-foreground">Nessun messaggio</p>
-              ) : (
-                <div className="space-y-3">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`p-3 rounded-lg text-sm ${
-                        msg.direction === "inbound"
-                          ? "bg-muted"
-                          : "bg-primary/5 border border-primary/10"
-                      }`}
-                    >
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>{msg.direction === "inbound" ? "📩 Ricevuto" : "📤 Inviato"}</span>
-                        <span>{format(new Date(msg.sent_at), "dd/MM/yy HH:mm")}</span>
-                      </div>
-                      {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
-                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripQuotedContent(msg.body) }} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
               <CardTitle className="text-base">Contatto</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -246,6 +146,101 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                 <div>
                   <p className="text-muted-foreground">Genere</p>
                   <p className="font-medium">{booking.gender}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Dettagli Soggiorno</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Check-in</p>
+                  <p className="font-medium">{booking.check_in ? format(new Date(booking.check_in), "dd MMM yyyy", { locale: it }) : "-"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Check-out</p>
+                  <p className="font-medium">{booking.check_out ? format(new Date(booking.check_out), "dd MMM yyyy", { locale: it }) : "-"}</p>
+                </div>
+              </div>
+              {booking.alternative_dates && (
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">Date Alternative</p>
+                  <p className="font-medium">{booking.alternative_dates}</p>
+                </div>
+              )}
+              {booking.notes && (
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">Note</p>
+                  <p className="font-medium">{booking.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {accommodations && accommodations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Camere Richieste</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {accommodations.map((acc) => (
+                  <div key={acc.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 text-sm">
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{acc.room_type || "Camera"}</span>
+                    </div>
+                    {acc.treatment && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Utensils className="h-3.5 w-3.5" />
+                        <span>{acc.treatment}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>{acc.adults || 1} adulti{acc.children ? `, ${acc.children} bambini` : ""}</span>
+                    </div>
+                    {acc.notes && <span className="text-muted-foreground italic">{acc.notes}</span>}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Conversazione</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <InlineEmailComposer booking={booking} onSent={handleMessageSent} />
+              {!messages?.length ? (
+                <p className="text-sm text-muted-foreground">Nessun messaggio</p>
+              ) : (
+                <div className="space-y-3">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`p-3 rounded-lg text-sm ${
+                        msg.direction === "inbound"
+                          ? "bg-muted"
+                          : "bg-primary/5 border border-primary/10"
+                      }`}
+                    >
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>{msg.direction === "inbound" ? "📩 Ricevuto" : "📤 Inviato"}</span>
+                        <span>{format(new Date(msg.sent_at), "dd/MM/yy HH:mm")}</span>
+                      </div>
+                      {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripQuotedContent(msg.body) }} />
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
