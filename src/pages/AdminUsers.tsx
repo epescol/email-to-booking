@@ -232,17 +232,8 @@ export default function AdminUsers() {
               <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Hotel</Label>
-              <Select value={form.hotel_id} onValueChange={(v) => setForm({ ...form, hotel_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona hotel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotels.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Nome Hotel</Label>
+              <Input value={form.hotel_name} onChange={(e) => setForm({ ...form, hotel_name: e.target.value })} placeholder="Es. Hotel Bellavista" />
             </div>
             <div className="space-y-2">
               <Label>Ruolo</Label>
