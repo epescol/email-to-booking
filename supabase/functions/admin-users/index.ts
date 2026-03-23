@@ -51,7 +51,29 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { email, password, display_name, hotel_id, role } = payload;
+      const { email, password, display_name, hotel_name, role } = payload;
+
+      // Create or find hotel by name
+      let hotel_id: string | null = null;
+      if (hotel_name) {
+        const { data: existing } = await supabaseAdmin
+          .from("hotels")
+          .select("id")
+          .eq("name", hotel_name)
+          .maybeSingle();
+        if (existing) {
+          hotel_id = existing.id;
+        } else {
+          const { data: newHotel, error: hotelErr } = await supabaseAdmin
+            .from("hotels")
+            .insert({ name: hotel_name })
+            .select("id")
+            .single();
+          if (hotelErr) throw hotelErr;
+          hotel_id = newHotel.id;
+        }
+      }
+
       // Create auth user
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
