@@ -99,8 +99,10 @@ serve(async (req) => {
 
     const xHotelRequestId = `${booking_id}`;
 
-    // Send email via denomailer
-    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port || 587}`);
+    // Extract domain from sender email for EHLO
+    const senderDomain = settings.smtp_user.split("@")[1] || settings.smtp_host;
+
+    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port || 587}, EHLO domain: ${senderDomain}`);
 
     const client = new SMTPClient({
       connection: {
@@ -111,6 +113,13 @@ serve(async (req) => {
           username: settings.smtp_user,
           password: settings.smtp_password,
         },
+      },
+      pool: {
+        size: 1,
+        timeout: 30000,
+      },
+      client: {
+        name: senderDomain,
       },
     });
 
