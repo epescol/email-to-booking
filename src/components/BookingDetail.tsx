@@ -37,6 +37,16 @@ interface BookingDetailProps {
   onBack: () => void;
 }
 
+function formatAlternativeDates(text: string): string {
+  // Try to find ISO dates (YYYY-MM-DD) and format them
+  return text.replace(/\b(\d{4}-\d{2}-\d{2})\b/g, (match) => {
+    try {
+      return format(new Date(match), "dd MMM yyyy", { locale: it });
+    } catch {
+      return match;
+    }
+  });
+}
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
