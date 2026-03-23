@@ -468,6 +468,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     </div>
                   )}
 
+                  {calc && (
                     <div className="text-xs space-y-0.5">
                       {calc.breakdown.map((b, i) => (
                         <p key={i} className="text-muted-foreground">
