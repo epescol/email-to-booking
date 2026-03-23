@@ -13,6 +13,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 
+interface BookingAccommodation {
+  id: string;
+  room_type: string | null;
+  treatment: string | null;
+  adults: number | null;
+  children: number | null;
+  notes: string | null;
+}
+
 interface InlineEmailComposerProps {
   booking: {
     id: string;
@@ -22,6 +31,7 @@ interface InlineEmailComposerProps {
     check_in: string | null;
     check_out: string | null;
   };
+  accommodations?: BookingAccommodation[];
   onSent: () => void;
 }
 
