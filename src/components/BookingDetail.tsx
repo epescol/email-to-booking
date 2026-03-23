@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/StatusBadge";
+
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -102,7 +102,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
-        <StatusBadge status={booking.status} />
+        
       </div>
 
       <div className="grid grid-cols-1 gap-6">

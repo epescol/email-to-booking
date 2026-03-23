@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { StatusBadge } from "@/components/StatusBadge";
+
 import { RefreshCw, Mail, Calendar, User, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -125,7 +125,7 @@ export default function Dashboard() {
                         <TableHead>Check-in</TableHead>
                         <TableHead>Check-out</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Stato</TableHead>
+                        
                         <TableHead>Data</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
@@ -142,7 +142,7 @@ export default function Dashboard() {
                           <TableCell>{b.check_in ? format(new Date(b.check_in), "dd MMM yyyy", { locale: it }) : "-"}</TableCell>
                           <TableCell>{b.check_out ? format(new Date(b.check_out), "dd MMM yyyy", { locale: it }) : "-"}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{b.email || "-"}</TableCell>
-                          <TableCell><StatusBadge status={b.status} /></TableCell>
+                          
                           <TableCell className="text-muted-foreground text-sm">
                             {format(new Date(b.created_at), "dd/MM/yy HH:mm")}
                           </TableCell>
