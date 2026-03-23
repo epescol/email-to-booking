@@ -37,7 +37,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { booking_id, subject, body } = await req.json();
+    const { booking_id, subject, body, is_html } = await req.json();
 
     if (!booking_id || !subject || !body) {
       return new Response(
@@ -106,6 +106,7 @@ serve(async (req) => {
       to: booking.email,
       subject,
       body,
+      isHtml: is_html === true,
       xHotelRequestId,
       ehloDomain: senderDomain,
       messageId: outboundMessageId,
@@ -152,6 +153,7 @@ interface SmtpConfig {
   to: string;
   subject: string;
   body: string;
+  isHtml: boolean;
   xHotelRequestId: string;
   ehloDomain: string;
   messageId: string;
@@ -257,7 +259,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
       `Message-ID: ${config.messageId}`,
       `X-Hotel-Request-ID: ${config.xHotelRequestId}`,
       `MIME-Version: 1.0`,
-      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Type: ${config.isHtml ? "text/html" : "text/plain"}; charset=UTF-8`,
       `Content-Transfer-Encoding: base64`,
       ``,
       btoa(unescape(encodeURIComponent(config.body))),

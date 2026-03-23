@@ -4,14 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, Calculator, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Loader2, Calculator, ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { WysiwygEditor } from "@/components/WysiwygEditor";
 
 interface InlineEmailComposerProps {
   booking: {
@@ -35,6 +35,11 @@ interface PricePeriod {
 interface RoomPrice {
   period_id: string;
   price_per_night: number;
+}
+
+interface SelectedRoom {
+  roomId: string;
+  manualPrice: string;
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string): string {
@@ -97,8 +102,7 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [selectedRoom, setSelectedRoom] = useState<string>("");
-  const [manualPrice, setManualPrice] = useState<string>("");
+  const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
 
   const { data: templates } = useQuery({
@@ -128,42 +132,81 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
     },
   });
 
-  const { data: roomPrices } = useQuery({
-    queryKey: ["room_prices_for_offer", selectedRoom],
+  // Fetch prices for all selected rooms at once
+  const selectedRoomIds = selectedRooms.map(r => r.roomId);
+  const { data: allRoomPrices } = useQuery({
+    queryKey: ["room_prices_for_offer", selectedRoomIds],
     queryFn: async () => {
+      if (selectedRoomIds.length === 0) return [];
       const { data, error } = await supabase
         .from("room_prices")
-        .select("period_id, price_per_night")
-        .eq("room_id", selectedRoom);
+        .select("room_id, period_id, price_per_night")
+        .in("room_id", selectedRoomIds);
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedRoom,
+    enabled: selectedRoomIds.length > 0,
   });
 
-  const calculatedPrice = useMemo(() => {
-    if (!booking.check_in || !booking.check_out || !pricePeriods || !roomPrices) return null;
-    return calculateStayPrice(booking.check_in, booking.check_out, pricePeriods, roomPrices);
-  }, [booking.check_in, booking.check_out, pricePeriods, roomPrices]);
+  // Calculate prices per room
+  const roomCalculations = useMemo(() => {
+    if (!booking.check_in || !booking.check_out || !pricePeriods || !allRoomPrices) return {};
+    const result: Record<string, ReturnType<typeof calculateStayPrice>> = {};
+    for (const sr of selectedRooms) {
+      const prices = allRoomPrices.filter(rp => rp.room_id === sr.roomId);
+      result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, prices);
+    }
+    return result;
+  }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms]);
 
-  const displayPrice = manualPrice || (calculatedPrice ? calculatedPrice.total.toFixed(2) : "");
+  // Grand total
+  const grandTotal = useMemo(() => {
+    let total = 0;
+    for (const sr of selectedRooms) {
+      const manual = parseFloat(sr.manualPrice);
+      if (!isNaN(manual) && manual > 0) {
+        total += manual;
+      } else {
+        const calc = roomCalculations[sr.roomId];
+        if (calc) total += calc.total;
+      }
+    }
+    return total;
+  }, [selectedRooms, roomCalculations]);
 
+  const displayPrice = grandTotal > 0 ? grandTotal.toFixed(2) : "";
+
+  // Available rooms (not already selected)
+  const availableRooms = rooms?.filter(r => !selectedRooms.some(sr => sr.roomId === r.id)) ?? [];
+
+  const addRoom = (roomId: string) => {
+    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "" }]);
+  };
+
+  const removeRoom = (roomId: string) => {
+    setSelectedRooms(prev => prev.filter(sr => sr.roomId !== roomId));
+  };
+
+  const updateRoomManualPrice = (roomId: string, price: string) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, manualPrice: price } : sr));
+  };
+
+  // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr));
-        setBody(applyTemplate(tpl.body_template, booking, priceStr));
+        // Convert plain text template to simple HTML
+        const htmlBody = applyTemplate(tpl.body_template, booking, priceStr)
+          .split("\n")
+          .map(line => line.trim() ? `<p>${line}</p>` : "<p></p>")
+          .join("");
+        setBody(htmlBody);
       }
     }
   }, [selectedTemplate, templates, booking, displayPrice]);
-
-  useEffect(() => {
-    if (displayPrice && body.includes("[PREZZO]")) {
-      setBody(prev => prev.replace(/\[PREZZO\]/g, `€${displayPrice}`));
-    }
-  }, [displayPrice]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) {
@@ -191,6 +234,7 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
             booking_id: booking.id,
             subject,
             body,
+            is_html: true,
           }),
         }
       );
@@ -203,8 +247,7 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
         setSubject("");
         setBody("");
         setSelectedTemplate("");
-        setSelectedRoom("");
-        setManualPrice("");
+        setSelectedRooms([]);
         onSent();
       }
     } catch {
@@ -213,8 +256,6 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
       setSending(false);
     }
   };
-
-  const selectedRoomName = rooms?.find(r => r.id === selectedRoom)?.name;
 
   if (!booking.email) {
     return (
@@ -234,83 +275,106 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
           Rispondi a {booking.first_name}
         </div>
 
-        {/* Template & Room selectors in a compact row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Template</Label>
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Seleziona template" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates?.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Camera</Label>
-            <Select value={selectedRoom} onValueChange={(val) => { setSelectedRoom(val); setManualPrice(""); }}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Seleziona camera" />
-              </SelectTrigger>
-              <SelectContent>
-                {rooms?.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Template selector */}
+        <div className="space-y-1">
+          <Label className="text-xs">Template</Label>
+          <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Seleziona template" />
+            </SelectTrigger>
+            <SelectContent>
+              {templates?.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Collapsible price section */}
-        {selectedRoom && (
-          <Collapsible open={priceOpen} onOpenChange={setPriceOpen}>
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 text-xs font-medium text-primary hover:underline w-full">
-                <Calculator className="h-3.5 w-3.5" />
-                {calculatedPrice
-                  ? `Prezzo calcolato: €${calculatedPrice.total.toFixed(2)} (${calculatedPrice.nights} notti)`
-                  : "Dettagli prezzo"
-                }
-                {priceOpen ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 space-y-2">
-              {calculatedPrice && (
-                <div className="text-xs space-y-1 bg-muted rounded-md p-2 border border-border">
-                  <p className="font-medium">{selectedRoomName} — {calculatedPrice.nights} notti</p>
-                  {calculatedPrice.breakdown.map((b, i) => (
-                    <p key={i} className="text-muted-foreground">
-                      {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
-                    </p>
-                  ))}
-                  <p className="font-bold text-primary">Totale: €{calculatedPrice.total.toFixed(2)}</p>
+        {/* Multi-room section */}
+        <Collapsible open={priceOpen} onOpenChange={setPriceOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 text-xs font-medium text-primary hover:underline w-full">
+              <Calculator className="h-3.5 w-3.5" />
+              Camere e Prezzi
+              {selectedRooms.length > 0 && (
+                <span className="text-muted-foreground">
+                  ({selectedRooms.length} {selectedRooms.length === 1 ? "camera" : "camere"}
+                  {grandTotal > 0 ? ` — €${grandTotal.toFixed(2)}` : ""})
+                </span>
+              )}
+              {priceOpen ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-3">
+            {/* Selected rooms */}
+            {selectedRooms.map((sr) => {
+              const room = rooms?.find(r => r.id === sr.roomId);
+              const calc = roomCalculations[sr.roomId];
+              const effectivePrice = sr.manualPrice || (calc ? calc.total.toFixed(2) : "");
+
+              return (
+                <div key={sr.roomId} className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{room?.name ?? sr.roomId}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRoom(sr.roomId)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  {calc && (
+                    <div className="text-xs space-y-0.5">
+                      {calc.breakdown.map((b, i) => (
+                        <p key={i} className="text-muted-foreground">
+                          {b.period}: {b.nights} notti × €{b.pricePerNight.toFixed(2)} = €{b.subtotal.toFixed(2)}
+                        </p>
+                      ))}
+                      <p className="font-semibold text-primary">Totale: €{calc.total.toFixed(2)}</p>
+                    </div>
+                  )}
+
+                  {!calc && allRoomPrices && (
+                    <p className="text-xs text-destructive">Nessun listino per queste date.</p>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Prezzo manuale</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={sr.manualPrice}
+                      onChange={(e) => updateRoomManualPrice(sr.roomId, e.target.value)}
+                      placeholder={calc ? `Calcolato: €${calc.total.toFixed(2)}` : "Inserisci prezzo"}
+                      className="h-8 text-sm"
+                    />
+                  </div>
                 </div>
-              )}
+              );
+            })}
 
-              {!calculatedPrice && roomPrices && (
-                <p className="text-xs text-destructive">
-                  Nessun listino disponibile per le date selezionate.
-                </p>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">Prezzo manuale</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={manualPrice}
-                  onChange={(e) => setManualPrice(e.target.value)}
-                  placeholder={calculatedPrice ? `Calcolato: €${calculatedPrice.total.toFixed(2)}` : "Inserisci prezzo"}
-                  className="h-8 text-sm"
-                />
+            {/* Add room button */}
+            {availableRooms.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Select onValueChange={addRoom} value="">
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Aggiungi camera..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRooms.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            )}
+
+            {/* Grand total */}
+            {selectedRooms.length > 1 && grandTotal > 0 && (
+              <div className="text-sm font-bold text-primary border-t border-border pt-2">
+                Totale generale: €{grandTotal.toFixed(2)}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Subject */}
         <div className="space-y-1">
@@ -323,14 +387,15 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
           />
         </div>
 
-        {/* Body */}
-        <Textarea
-          rows={6}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Scrivi il messaggio..."
-          className="text-sm"
-        />
+        {/* WYSIWYG Body */}
+        <div className="space-y-1">
+          <Label className="text-xs">Corpo Email</Label>
+          <WysiwygEditor
+            content={body}
+            onChange={setBody}
+            placeholder="Scrivi il messaggio..."
+          />
+        </div>
 
         {/* Send button */}
         <div className="flex justify-end">
