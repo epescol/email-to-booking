@@ -42,13 +42,61 @@ interface SelectedRoom {
   manualPrice: string;
 }
 
-function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string): string {
+function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
   return template
     .replace(/\{\{nome\}\}/g, booking.first_name || "")
     .replace(/\{\{cognome\}\}/g, booking.last_name || "")
     .replace(/\{\{check_in\}\}/g, booking.check_in ? format(new Date(booking.check_in), "dd/MM/yyyy", { locale: it }) : "")
     .replace(/\{\{check_out\}\}/g, booking.check_out ? format(new Date(booking.check_out), "dd/MM/yyyy", { locale: it }) : "")
-    .replace(/\{\{prezzo\}\}/g, price || "[PREZZO]");
+    .replace(/\{\{prezzo\}\}/g, price || "[PREZZO]")
+    .replace(/\{\{camere\}\}/g, roomsHtml || "");
+}
+
+interface RoomData {
+  id: string;
+  name: string;
+  beds: string | null;
+  min_occupancy: number;
+  max_occupancy: number;
+  photo_url_1: string | null;
+  photo_url_2: string | null;
+  photo_url_3: string | null;
+  photo_url_4: string | null;
+  site_url: string | null;
+}
+
+function generateRoomPreviewHtml(
+  roomData: RoomData,
+  price: string | null,
+  nights: number | null
+): string {
+  const photos = [roomData.photo_url_1, roomData.photo_url_2, roomData.photo_url_3, roomData.photo_url_4].filter(Boolean);
+  
+  const photosHtml = photos.length > 0
+    ? `<div style="margin-bottom:12px;">${photos.map(url => 
+        `<img src="${url}" alt="${roomData.name}" style="width:48%;max-width:280px;border-radius:8px;margin:4px 1%;display:inline-block;vertical-align:top;" />`
+      ).join("")}</div>`
+    : "";
+
+  const detailParts: string[] = [];
+  if (roomData.beds) detailParts.push(`Letti: ${roomData.beds}`);
+  detailParts.push(`Occupazione: ${roomData.min_occupancy}-${roomData.max_occupancy} persone`);
+  
+  const priceHtml = price
+    ? `<p style="font-size:16px;font-weight:bold;color:#2563eb;margin:8px 0;">€${price}${nights ? ` (${nights} notti)` : ""}</p>`
+    : "";
+
+  const linkHtml = roomData.site_url
+    ? `<p style="margin:4px 0;"><a href="${roomData.site_url}" style="color:#2563eb;text-decoration:underline;font-size:13px;">Vedi dettagli camera →</a></p>`
+    : "";
+
+  return `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;background-color:#f8fafc;">
+    <h3 style="margin:0 0 8px;color:#1e293b;font-size:16px;">${roomData.name}</h3>
+    ${photosHtml}
+    <p style="color:#64748b;font-size:13px;margin:4px 0;">${detailParts.join(" · ")}</p>
+    ${priceHtml}
+    ${linkHtml}
+  </div>`;
 }
 
 function calculateStayPrice(
@@ -117,7 +165,10 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
   const { data: rooms } = useQuery({
     queryKey: ["rooms_for_offer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("rooms").select("id, name").order("name");
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("id, name, beds, min_occupancy, max_occupancy, photo_url_1, photo_url_2, photo_url_3, photo_url_4, site_url")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -191,22 +242,33 @@ export function InlineEmailComposer({ booking, onSent }: InlineEmailComposerProp
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, manualPrice: price } : sr));
   };
 
+  // Generate rooms HTML for template
+  const roomsPreviewHtml = useMemo(() => {
+    if (!rooms || selectedRooms.length === 0) return "";
+    return selectedRooms.map(sr => {
+      const roomData = rooms.find(r => r.id === sr.roomId);
+      if (!roomData) return "";
+      const calc = roomCalculations[sr.roomId];
+      const manual = parseFloat(sr.manualPrice);
+      const price = !isNaN(manual) && manual > 0 ? manual.toFixed(2) : calc ? calc.total.toFixed(2) : null;
+      const nights = calc ? calc.nights : null;
+      return generateRoomPreviewHtml(roomData, price, nights);
+    }).join("");
+  }, [rooms, selectedRooms, roomCalculations]);
+
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
-        setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr));
-        // Convert plain text template to simple HTML
-        const htmlBody = applyTemplate(tpl.body_template, booking, priceStr)
-          .split("\n")
-          .map(line => line.trim() ? `<p>${line}</p>` : "<p></p>")
-          .join("");
+        setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
+        // Template body is already HTML, apply directly
+        const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
         setBody(htmlBody);
       }
     }
-  }, [selectedTemplate, templates, booking, displayPrice]);
+  }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) {
