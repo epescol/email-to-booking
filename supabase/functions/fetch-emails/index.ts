@@ -20,10 +20,16 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (mode === "webhook") {
-      // Validate webhook secret
+      // Validate webhook secret (REQUIRED)
       const webhookSecret = Deno.env.get("FETCH_EMAILS_WEBHOOK_SECRET");
+      if (!webhookSecret) {
+        return new Response(JSON.stringify({ error: "Webhook secret not configured on server" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const providedSecret = req.headers.get("x-webhook-secret") || body.webhook_secret;
-      if (webhookSecret && providedSecret !== webhookSecret) {
+      if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
