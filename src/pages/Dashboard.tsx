@@ -69,13 +69,19 @@ export default function Dashboard() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
+          body: JSON.stringify({ mode: "manual" }),
         }
       );
       const result = await response.json();
       if (!response.ok) {
         toast.error(result.error || "Errore durante l'importazione");
       } else {
-        toast.success(result.message || `Importate ${result.imported} email`);
+        // Show webhook info
+        const webhookUrl = result.webhook_url;
+        toast.success(
+          `Webhook URL: ${webhookUrl}\n\nConfigura Zapier/Make/n8n per inviare le email a questo endpoint.`,
+          { duration: 15000 }
+        );
         refetch();
         queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
       }
