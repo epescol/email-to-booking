@@ -2,7 +2,7 @@ import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail } from 
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, useUserRoles } from "@/hooks/useProfile";
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +26,7 @@ const mainItems = [
 ];
 
 const adminItems = [
-  { title: "Utenti", url: "/admin/users", icon: Users },
+  { title: "Gestione Utenti", url: "/admin/users", icon: Users },
 ];
 
 export function AppSidebar() {
@@ -35,6 +35,8 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile(user?.id);
+  const { data: roles } = useUserRoles(user?.id);
+  const isAdmin = roles?.some(r => r.role === "admin");
 
   const isActive = (path: string) => location.pathname === path;
 
