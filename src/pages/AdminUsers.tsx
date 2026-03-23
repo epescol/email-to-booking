@@ -116,7 +116,7 @@ export default function AdminUsers() {
       email: u.email || "",
       password: "",
       display_name: u.display_name || "",
-      hotel_id: u.hotel_id || "",
+      hotel_name: u.hotels?.name || "",
       role: u.user_roles?.[0]?.role || "user",
     });
     setDialogOpen(true);
