@@ -265,7 +265,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices);
     }
     return result;
-  }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms]);
+  }, [booking.check_in, booking.check_out, pricePeriods, allRoomPrices, selectedRooms, pricingMode]);
 
   // Grand total
   const grandTotal = useMemo(() => {
