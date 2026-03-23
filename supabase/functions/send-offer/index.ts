@@ -248,7 +248,6 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
 
     // Build email
     const now = new Date().toUTCString();
-    const messageId = `<${crypto.randomUUID()}@${config.ehloDomain}>`;
 
     const emailData = [
       `From: ${config.from}`,
