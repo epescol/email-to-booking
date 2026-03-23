@@ -79,18 +79,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
-  const handleStatusChange = async (newStatus: string) => {
-    const { error } = await supabase
-      .from("booking_requests")
-      .update({ status: newStatus })
-      .eq("id", bookingId);
-    if (error) {
-      toast.error("Errore nell'aggiornamento dello stato");
-    } else {
-      toast.success("Stato aggiornato");
-      refetch();
-    }
-  };
 
   const handleMessageSent = () => {
     refetch();
