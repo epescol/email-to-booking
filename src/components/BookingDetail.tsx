@@ -73,6 +73,18 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
+  const { data: accommodations } = useQuery({
+    queryKey: ["booking_accommodations", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_accommodations")
+        .select("*")
+        .eq("request_id", bookingId);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handleStatusChange = async (newStatus: string) => {
     const { error } = await supabase
       .from("booking_requests")
