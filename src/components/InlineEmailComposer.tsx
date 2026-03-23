@@ -444,7 +444,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     </Button>
                   </div>
 
-                  {calc && (
+                  {pricingMode === "per_occupancy" && room && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Occupazione</Label>
+                      <Select
+                        value={sr.occupancy?.toString() || ""}
+                        onValueChange={(v) => updateRoomOccupancy(sr.roomId, parseInt(v))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Seleziona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(
+                            { length: (room.max_occupancy || 2) - (room.min_occupancy || 1) + 1 },
+                            (_, i) => (room.min_occupancy || 1) + i
+                          ).map((occ) => (
+                            <SelectItem key={occ} value={occ.toString()}>
+                              {occ} {occ === 1 ? "persona" : "persone"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                     <div className="text-xs space-y-0.5">
                       {calc.breakdown.map((b, i) => (
                         <p key={i} className="text-muted-foreground">
