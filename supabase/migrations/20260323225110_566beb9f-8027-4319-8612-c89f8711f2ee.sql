@@ -1,0 +1,1 @@
+ALTER TABLE public.hotels ADD COLUMN room_card_template text;

@@ -253,6 +253,7 @@ export type Database = {
           name: string
           phone: string | null
           pricing_mode: string
+          room_card_template: string | null
           updated_at: string
           website: string | null
         }
@@ -264,6 +265,7 @@ export type Database = {
           name: string
           phone?: string | null
           pricing_mode?: string
+          room_card_template?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -275,6 +277,7 @@ export type Database = {
           name?: string
           phone?: string | null
           pricing_mode?: string
+          room_card_template?: string | null
           updated_at?: string
           website?: string | null
         }
