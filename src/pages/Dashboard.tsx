@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Download, Mail, Calendar, User, Eye } from "lucide-react";
+import { RefreshCw, Mail, Calendar, User, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -22,7 +22,6 @@ const STATUSES = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [fetchingEmails, setFetchingEmails] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: bookings, isLoading, refetch } = useQuery({
@@ -53,43 +52,10 @@ export default function Dashboard() {
     },
   });
 
-  const handleFetchEmails = async () => {
-    setFetchingEmails(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Devi essere autenticato");
-        return;
-      }
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-emails`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ mode: "manual" }),
-        }
-      );
-      const result = await response.json();
-      if (!response.ok) {
-        toast.error(result.error || "Errore durante l'importazione");
-      } else {
-        // Show webhook info
-        const webhookUrl = result.webhook_url;
-        toast.success(
-          `Webhook URL: ${webhookUrl}\n\nConfigura Zapier/Make/n8n per inviare le email a questo endpoint.`,
-          { duration: 15000 }
-        );
-        refetch();
-        queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
-      }
-    } catch (e) {
-      toast.error("Errore di connessione");
-    } finally {
-      setFetchingEmails(false);
-    }
+  const handleRefresh = () => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+    toast.success("Dati aggiornati");
   };
 
   if (selectedBookingId) {
@@ -111,9 +77,9 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Prenotazioni</h1>
           <p className="text-muted-foreground text-sm">Gestisci le richieste di prenotazione</p>
         </div>
-        <Button onClick={handleFetchEmails} disabled={fetchingEmails} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          {fetchingEmails ? "Scaricando..." : "Scarica Email"}
+        <Button onClick={handleRefresh} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Aggiorna
         </Button>
       </div>
 
