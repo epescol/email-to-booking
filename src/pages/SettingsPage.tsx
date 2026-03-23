@@ -69,12 +69,112 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-emails`;
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(label);
+    toast.success(`${label} copiato!`);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const examplePayload = JSON.stringify({
+    mode: "webhook",
+    hotel_id: profile?.hotel_id || "IL_TUO_HOTEL_ID",
+    emails: [{
+      subject: "{{ subject }}",
+      body: "{{ textPlain }}",
+      from: "{{ from }}",
+      date: "{{ date }}",
+      message_id: "{{ messageId }}"
+    }]
+  }, null, 2);
+
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Impostazioni</h1>
-        <p className="text-muted-foreground text-sm">Configura le credenziali email per il tuo hotel</p>
+        <p className="text-muted-foreground text-sm">Configura le credenziali email e il webhook per il tuo hotel</p>
       </div>
+
+      {/* Webhook Configuration Card */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Webhook className="h-4 w-4" /> Webhook Ricezione Email
+          </CardTitle>
+          <CardDescription>
+            Configura un servizio esterno (n8n, Zapier, Make) per inviare le email ricevute via IMAP a questo webhook
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Webhook URL</Label>
+            <div className="flex gap-2">
+              <Input value={webhookUrl} readOnly className="font-mono text-xs bg-muted" />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => copyToClipboard(webhookUrl, "URL")}
+              >
+                {copied === "URL" ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Hotel ID</Label>
+            <div className="flex gap-2">
+              <Input value={profile?.hotel_id || "—"} readOnly className="font-mono text-xs bg-muted" />
+              {profile?.hotel_id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => copyToClipboard(profile.hotel_id!, "Hotel ID")}
+                >
+                  {copied === "Hotel ID" ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Payload di esempio (JSON)</Label>
+            <div className="relative">
+              <pre className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                {examplePayload}
+              </pre>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2"
+                onClick={() => copyToClipboard(examplePayload, "Payload")}
+              >
+                {copied === "Payload" ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p className="font-medium">Istruzioni per n8n:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Aggiungi un nodo <strong>IMAP Email</strong> come trigger (con le credenziali sotto)</li>
+              <li>Aggiungi un nodo <strong>HTTP Request</strong> (POST) con l'URL sopra</li>
+              <li>Imposta l'header <code className="bg-muted px-1 rounded">x-webhook-secret</code> con il tuo segreto</li>
+              <li>Usa il payload di esempio adattando i campi n8n</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
@@ -102,6 +202,7 @@ export default function SettingsPage() {
             <CardTitle className="text-base flex items-center gap-2">
               <Server className="h-4 w-4" /> Server IMAP (Ricezione)
             </CardTitle>
+            <CardDescription>Credenziali da usare anche in n8n per il nodo IMAP</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
