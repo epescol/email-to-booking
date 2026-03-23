@@ -35,5 +35,5 @@ export function useAuth() {
     await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signIn, signUp, signOut };
+  return { user, session, loading, signIn, signOut };
 }
