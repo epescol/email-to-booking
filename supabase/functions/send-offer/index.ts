@@ -95,6 +95,7 @@ serve(async (req) => {
 
     const xHotelRequestId = `${booking_id}`;
     const senderDomain = settings.smtp_user.split("@")[1] || settings.smtp_host;
+    const outboundMessageId = `<${crypto.randomUUID()}@${senderDomain}>`;
 
     await sendSmtpEmail({
       host: settings.smtp_host,
@@ -107,6 +108,7 @@ serve(async (req) => {
       body,
       xHotelRequestId,
       ehloDomain: senderDomain,
+      messageId: outboundMessageId,
     });
 
     await supabase.from("booking_messages").insert({
@@ -114,6 +116,7 @@ serve(async (req) => {
       direction: "outbound",
       subject,
       body,
+      email_message_id: outboundMessageId,
       x_hotel_request_id: xHotelRequestId,
       sent_at: new Date().toISOString(),
     });
