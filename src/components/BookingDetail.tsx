@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,29 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { SendOfferDialog } from "@/components/SendOfferDialog";
+
+function stripQuotedContent(body: string | null): string {
+  if (!body) return "";
+  const text = body.replace(/\\n/g, '\n');
+  // Match common quote separators
+  const patterns = [
+    /\n_{5,}/,                          // _____ separator (Outlook)
+    /\n-{5,}/,                          // ----- separator
+    /\nDa:.*\nInviato:.*\n/i,           // Italian Outlook quote header
+    /\nFrom:.*\nSent:.*\n/i,            // English Outlook quote header
+    /\nOn .+ wrote:\s*\n/i,             // Gmail-style "On ... wrote:"
+    /\nIl .+ ha scritto:\s*\n/i,        // Italian Gmail-style
+    /\n>+ /,                            // > quoted lines
+  ];
+  let cutIndex = text.length;
+  for (const pattern of patterns) {
+    const match = text.search(pattern);
+    if (match !== -1 && match < cutIndex) {
+      cutIndex = match;
+    }
+  }
+  return text.substring(0, cutIndex).trim();
+}
 
 interface BookingDetailProps {
   bookingId: string;
@@ -165,7 +188,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                         <span>{format(new Date(msg.sent_at), "dd/MM/yy HH:mm")}</span>
                       </div>
                       {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
-                      <p className="whitespace-pre-wrap">{msg.body?.replace(/\\n/g, '\n')}</p>
+                      <p className="whitespace-pre-wrap">{stripQuotedContent(msg.body)}</p>
                     </div>
                   ))}
                 </div>
