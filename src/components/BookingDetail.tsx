@@ -103,16 +103,6 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
           </p>
         </div>
         <StatusBadge status={booking.status} />
-        <Select value={booking.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
