@@ -62,14 +62,7 @@ export default function AdminUsers() {
     enabled: isAdmin,
   });
 
-  const { data: hotels = [] } = useQuery({
-    queryKey: ["hotels-list"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name");
-      return data || [];
-    },
-    enabled: isAdmin,
-  });
+  // Hotels list no longer needed for dropdown
 
   const saveMutation = useMutation({
     mutationFn: async () => {
