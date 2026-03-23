@@ -12,6 +12,7 @@ import { it } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
+import { DEFAULT_ROOM_CARD_TEMPLATE, renderTemplate } from "@/components/RoomCardTemplateEditor";
 
 interface BookingAccommodation {
   id: string;
