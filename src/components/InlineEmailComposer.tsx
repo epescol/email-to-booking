@@ -117,8 +117,9 @@ function calculateStayPrice(
   checkIn: string,
   checkOut: string,
   periods: PricePeriod[],
-  roomPrices: RoomPrice[]
-): { total: number; nights: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
+  roomPrices: RoomPrice[],
+  guests: number = 1
+): { total: number; nights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
   try {
     const startDate = parseISO(checkIn);
     const endDate = parseISO(checkOut);
@@ -150,10 +151,10 @@ function calculateStayPrice(
 
     const breakdown = Array.from(breakdownMap.values()).map(b => ({
       ...b,
-      subtotal: b.nights * b.pricePerNight,
+      subtotal: b.nights * b.pricePerNight * guests,
     }));
 
-    return { total, nights: coveredNights, breakdown };
+    return { total: total * guests, nights: coveredNights, guests, breakdown };
   } catch {
     return null;
   }
