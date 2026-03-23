@@ -45,11 +45,13 @@ interface PricePeriod {
 interface RoomPrice {
   period_id: string;
   price_per_night: number;
+  occupancy: number | null;
 }
 
 interface SelectedRoom {
   roomId: string;
   manualPrice: string;
+  occupancy: number | null; // used in per_occupancy mode
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
