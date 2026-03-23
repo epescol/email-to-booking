@@ -151,6 +151,9 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Room Card Template */}
+      <RoomCardTemplateEditor />
+
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
           <CardHeader>
