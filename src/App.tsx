@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRoles } from "@/hooks/useProfile";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -18,8 +19,10 @@ const queryClient = new QueryClient();
 
 function AuthGate() {
   const { user, loading } = useAuth();
+  const { data: roles, isLoading: rolesLoading } = useUserRoles(user?.id);
+  const isAdmin = roles?.some(r => r.role === "admin");
 
-  if (loading) {
+  if (loading || (user && rolesLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Caricamento...</div>
@@ -32,14 +35,22 @@ function AuthGate() {
   return (
     <Routes>
       <Route element={<DashboardLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/rooms" element={<Rooms />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/templates" element={<Templates />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
+        {isAdmin ? (
+          <>
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="*" element={<Navigate to="/admin/users" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/rooms" element={<Rooms />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        )}
       </Route>
-      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
