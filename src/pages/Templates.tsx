@@ -92,9 +92,13 @@ export default function Templates() {
               </div>
               <div className="space-y-2">
                 <Label>Corpo Email</Label>
-                <Textarea rows={8} value={form.body_template} onChange={(e) => setForm({ ...form, body_template: e.target.value })} required placeholder="Gentile {{nome}},..." />
+                <WysiwygEditor
+                  content={form.body_template}
+                  onChange={(html) => setForm({ ...form, body_template: html })}
+                  placeholder="Scrivi il corpo del template..."
+                />
               </div>
-              <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}"}</p>
+              <p className="text-xs text-muted-foreground">Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}"}</p>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salva</Button>
             </form>
           </DialogContent>
