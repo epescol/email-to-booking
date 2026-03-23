@@ -299,6 +299,10 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, manualPrice: price } : sr));
   };
 
+  const updateRoomOccupancy = (roomId: string, occupancy: number) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, occupancy } : sr));
+  };
+
   // Generate rooms HTML for template
   const roomsPreviewHtml = useMemo(() => {
     if (!rooms || selectedRooms.length === 0) return "";
