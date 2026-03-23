@@ -99,7 +99,7 @@ const EDITOR_CONFIG = {
   },
   htmlSupport: {
     allow: [
-      { name: /.*/, attributes: true, classes: true as any, styles: true },
+      { name: /.*/} as any,
     ],
   },
   placeholder: "Scrivi il contenuto...",
