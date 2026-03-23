@@ -29,11 +29,11 @@ interface UserFormData {
   email: string;
   password: string;
   display_name: string;
-  hotel_id: string;
+  hotel_name: string;
   role: string;
 }
 
-const emptyForm: UserFormData = { email: "", password: "", display_name: "", hotel_id: "", role: "user" };
+const emptyForm: UserFormData = { email: "", password: "", display_name: "", hotel_name: "", role: "user" };
 
 async function callAdminUsers(action: string, payload: Record<string, unknown> = {}) {
   const { data: { session } } = await supabase.auth.getSession();
