@@ -72,31 +72,33 @@ function generateRoomPreviewHtml(
 ): string {
   const photos = [roomData.photo_url_1, roomData.photo_url_2, roomData.photo_url_3, roomData.photo_url_4].filter(Boolean);
   
-  const photosHtml = photos.length > 0
-    ? `<div style="margin-bottom:12px;">${photos.map(url => 
-        `<img src="${url}" alt="${roomData.name}" style="width:48%;max-width:280px;border-radius:8px;margin:4px 1%;display:inline-block;vertical-align:top;" />`
-      ).join("")}</div>`
+  const photoHtml = photos.length > 0
+    ? `<img src="${photos[0]}" alt="${roomData.name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px 12px 0 0;display:block;" />`
     : "";
 
   const detailParts: string[] = [];
-  if (roomData.beds) detailParts.push(`Letti: ${roomData.beds}`);
-  detailParts.push(`Occupazione: ${roomData.min_occupancy}-${roomData.max_occupancy} persone`);
+  if (roomData.beds) detailParts.push(`🛏️ ${roomData.beds}`);
+  detailParts.push(`👤 ${roomData.min_occupancy}-${roomData.max_occupancy} ospiti`);
   
   const priceHtml = price
-    ? `<p style="font-size:16px;font-weight:bold;color:#2563eb;margin:8px 0;">€${price}${nights ? ` (${nights} notti)` : ""}</p>`
+    ? `<td style="text-align:right;vertical-align:middle;">
+        <p style="margin:0;font-size:24px;font-weight:800;color:#1e3a5f;">€${price}</p>
+        ${nights ? `<p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">${nights} notti</p>` : ""}
+       </td>`
     : "";
 
   const linkHtml = roomData.site_url
-    ? `<p style="margin:4px 0;"><a href="${roomData.site_url}" style="color:#2563eb;text-decoration:underline;font-size:13px;">Vedi dettagli camera →</a></p>`
+    ? `<a href="${roomData.site_url}" style="display:inline-block;margin-top:8px;color:#2563eb;text-decoration:none;font-size:13px;font-weight:500;">Scopri di più →</a>`
     : "";
 
-  return `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;background-color:#f8fafc;">
-    <h3 style="margin:0 0 8px;color:#1e293b;font-size:16px;">${roomData.name}</h3>
-    ${photosHtml}
-    <p style="color:#64748b;font-size:13px;margin:4px 0;">${detailParts.join(" · ")}</p>
-    ${priceHtml}
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+  ${photoHtml ? `<tr><td colspan="2">${photoHtml}</td></tr>` : ""}
+  <tr><td style="padding:16px 20px;" ${priceHtml ? '' : 'colspan="2"'}>
+    <p style="margin:0 0 6px;font-size:17px;font-weight:700;color:#1e293b;">${roomData.name}</p>
+    <p style="margin:0;font-size:13px;color:#64748b;">${detailParts.join(" &nbsp;·&nbsp; ")}</p>
     ${linkHtml}
-  </div>`;
+  </td>${priceHtml}</tr>
+</table>`;
 }
 
 function calculateStayPrice(
