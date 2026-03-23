@@ -136,7 +136,7 @@ export default function SettingsPage() {
                   size="icon"
                   onClick={() => copyToClipboard(profile.hotel_id!, "Hotel ID")}
                 >
-                  {copied === "Hotel ID" ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  {copied === "Hotel ID" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                 </Button>
               )}
             </div>
