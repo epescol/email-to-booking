@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,22 +97,37 @@ serve(async (req) => {
       );
     }
 
-    // Generate X-Hotel-Request-ID for tracking replies
     const xHotelRequestId = `${booking_id}`;
 
-    // Send email via SMTP using raw TCP
-    await sendSmtpEmail({
-      host: settings.smtp_host,
-      port: settings.smtp_port || 587,
-      username: settings.smtp_user,
-      password: settings.smtp_password,
-      useSsl: settings.smtp_use_ssl !== false,
-      from: settings.smtp_user,
-      to: booking.email,
-      subject,
-      body,
-      xHotelRequestId,
+    // Send email via denomailer
+    console.log(`Connecting to SMTP: ${settings.smtp_host}:${settings.smtp_port || 587}`);
+
+    const client = new SMTPClient({
+      connection: {
+        hostname: settings.smtp_host,
+        port: settings.smtp_port || 587,
+        tls: settings.smtp_port === 465,
+        auth: {
+          username: settings.smtp_user,
+          password: settings.smtp_password,
+        },
+      },
     });
+
+    try {
+      await client.send({
+        from: settings.smtp_user,
+        to: booking.email,
+        subject: subject,
+        content: body,
+        headers: {
+          "X-Hotel-Request-ID": xHotelRequestId,
+        },
+      });
+      console.log("Email sent successfully");
+    } finally {
+      await client.close();
+    }
 
     // Save message to booking_messages
     await supabase.from("booking_messages").insert({
@@ -143,117 +159,3 @@ serve(async (req) => {
     );
   }
 });
-
-// ---- SMTP send via raw TCP/TLS ----
-
-interface SmtpConfig {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  useSsl: boolean;
-  from: string;
-  to: string;
-  subject: string;
-  body: string;
-  xHotelRequestId: string;
-}
-
-async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  let conn: Deno.TlsConn | Deno.TcpConn;
-
-  // Port 465 = implicit TLS, port 587 = STARTTLS
-  if (config.port === 465 || config.useSsl) {
-    conn = await Deno.connectTls({ hostname: config.host, port: config.port });
-  } else {
-    conn = await Deno.connect({ hostname: config.host, port: config.port });
-  }
-
-  async function readResp(): Promise<string> {
-    const buf = new Uint8Array(4096);
-    let result = "";
-    while (true) {
-      const n = await conn.read(buf);
-      if (n === null) break;
-      result += decoder.decode(buf.subarray(0, n));
-      // SMTP responses end with \r\n and have a space after code (e.g., "250 OK\r\n")
-      if (/^\d{3} /m.test(result) || /^\d{3}-/m.test(result)) {
-        // Wait a bit for multiline responses
-        if (/^\d{3} /m.test(result.split("\r\n").filter(Boolean).pop() || "")) {
-          break;
-        }
-      }
-    }
-    return result;
-  }
-
-  async function sendCmd(cmd: string): Promise<string> {
-    await conn.write(encoder.encode(cmd + "\r\n"));
-    return await readResp();
-  }
-
-  try {
-    // Read greeting
-    await readResp();
-
-    // EHLO
-    const ehloResp = await sendCmd(`EHLO localhost`);
-
-    // STARTTLS if port 587 and not already TLS
-    if (config.port === 587 && !config.useSsl && ehloResp.includes("STARTTLS")) {
-      await sendCmd("STARTTLS");
-      conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: config.host });
-      await sendCmd("EHLO localhost");
-    }
-
-    // AUTH LOGIN
-    await sendCmd("AUTH LOGIN");
-    await sendCmd(btoa(config.username));
-    const authResp = await sendCmd(btoa(config.password));
-    if (!authResp.includes("235")) {
-      throw new Error("Autenticazione SMTP fallita");
-    }
-
-    // MAIL FROM
-    await sendCmd(`MAIL FROM:<${config.from}>`);
-
-    // RCPT TO
-    await sendCmd(`RCPT TO:<${config.to}>`);
-
-    // DATA
-    await sendCmd("DATA");
-
-    // Build email with headers
-    const now = new Date().toUTCString();
-    const messageId = `<${crypto.randomUUID()}@${config.host}>`;
-
-    const emailData = [
-      `From: ${config.from}`,
-      `To: ${config.to}`,
-      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(config.subject)))}?=`,
-      `Date: ${now}`,
-      `Message-ID: ${messageId}`,
-      `X-Hotel-Request-ID: ${config.xHotelRequestId}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      `Content-Transfer-Encoding: base64`,
-      ``,
-      btoa(unescape(encodeURIComponent(config.body))),
-      `.`,
-    ].join("\r\n");
-
-    const dataResp = await sendCmd(emailData);
-    if (!dataResp.includes("250")) {
-      throw new Error("Errore nell'invio dell'email: " + dataResp);
-    }
-
-    await sendCmd("QUIT");
-    conn.close();
-  } catch (e) {
-    try { conn.close(); } catch {}
-    throw e;
-  }
-}
