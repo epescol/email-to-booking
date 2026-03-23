@@ -80,7 +80,7 @@ export default function AdminUsers() {
           email: form.email,
           password: form.password,
           display_name: form.display_name,
-          hotel_id: form.hotel_id || null,
+          hotel_name: form.hotel_name || null,
           role: form.role,
         });
       }
