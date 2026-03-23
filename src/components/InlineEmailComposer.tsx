@@ -288,7 +288,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const availableRooms = rooms?.filter(r => !selectedRooms.some(sr => sr.roomId === r.id)) ?? [];
 
   const addRoom = (roomId: string) => {
-    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "" }]);
+    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1 }]);
   };
 
   const removeRoom = (roomId: string) => {
