@@ -37,10 +37,6 @@ interface BookingDetailProps {
   onBack: () => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: "nuova", label: "Nuova" },
-  { value: "presa_in_carico", label: "Presa in Carico" },
-];
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
