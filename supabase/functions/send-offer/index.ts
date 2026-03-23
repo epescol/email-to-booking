@@ -119,7 +119,7 @@ serve(async (req) => {
       host: settings.smtp_host,
       port: settings.smtp_port || 587,
       username: settings.smtp_user,
-      password: settings.smtp_password,
+      password: smtpPassword,
       from: settings.smtp_user,
       to: booking.email,
       subject,
