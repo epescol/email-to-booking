@@ -51,6 +51,23 @@ function formatAlternativeDates(text: string): string {
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
+  const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await supabase.from("booking_accommodations").delete().eq("request_id", bookingId);
+      await supabase.from("booking_messages").delete().eq("request_id", bookingId);
+      const { error } = await supabase.from("booking_requests").delete().eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Richiesta eliminata");
+      queryClient.invalidateQueries({ queryKey: ["booking_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+      onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: booking, refetch } = useQuery({
     queryKey: ["booking", bookingId],
