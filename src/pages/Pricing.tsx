@@ -264,11 +264,8 @@ function PeriodHeaders({ periods, deletePeriod }: { periods: any[]; deletePeriod
       {periods.map((p) => (
         <TableHead key={p.id} className="text-center min-w-[140px]">
           <div className="flex items-center justify-center gap-1">
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {format(new Date(p.start_date), "dd/MM")} - {format(new Date(p.end_date), "dd/MM")}
-              </div>
+            <div className="text-xs">
+              {format(new Date(p.start_date), "dd/MM/yyyy")} - {format(new Date(p.end_date), "dd/MM/yyyy")}
             </div>
             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deletePeriod.mutate(p.id)}>
               <Trash2 className="h-3 w-3" />
