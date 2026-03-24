@@ -196,7 +196,7 @@ export default function Rooms() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(room)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(room.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(room.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
