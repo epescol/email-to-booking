@@ -21,6 +21,7 @@ export default function Templates() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
+  const confirm = useConfirmDelete();
 
   const isEditorOpen = isCreating || !!editingId;
 
