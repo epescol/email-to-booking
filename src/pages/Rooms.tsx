@@ -119,18 +119,14 @@ export default function Rooms() {
               className="space-y-4"
               onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}
             >
-              {editingId && (
-                <div className="space-y-2">
-                  <Label>ID Camera (per XML email)</Label>
-                  <div className="flex gap-2">
-                    <Input value={editingId} readOnly className="font-mono text-xs bg-muted" />
-                    <Button type="button" variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(editingId); toast.success("ID copiato"); }}>Copia</Button>
-                  </div>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label>Nome Camera</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Codice Camera (per mapping XML email)</Label>
+                <Input value={form.room_code} onChange={(e) => setForm({ ...form, room_code: e.target.value })} placeholder="es. DBL-101, suite-panoramica" className="font-mono text-sm" />
+                <p className="text-xs text-muted-foreground">Inserisci lo stesso codice usato sul sito web dell'hotel</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
