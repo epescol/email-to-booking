@@ -38,7 +38,7 @@ export default function TreatmentsManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCode, setEditCode] = useState("");
-
+  const confirm = useConfirmDelete();
   const addTreatment = useMutation({
     mutationFn: async () => {
       if (!profile?.hotel_id || !newName.trim()) throw new Error("Nome richiesto");
