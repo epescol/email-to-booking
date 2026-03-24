@@ -50,6 +50,7 @@ export default function TreatmentsManager() {
     onSuccess: () => {
       toast.success("Trattamento aggiunto");
       setNewName("");
+      setNewCode("");
       queryClient.invalidateQueries({ queryKey: ["treatments"] });
     },
     onError: (e: Error) => toast.error(e.message),
