@@ -152,8 +152,22 @@ serve(async (req) => {
           requestId = newReq.id;
         }
 
-        // Insert accommodations if parsed
-        if (parsed.accommodations && parsed.accommodations.length > 0 && requestId) {
+        // Insert accommodations: prefer structured XML data, fallback to AI-parsed
+        const structuredAccommodations = parseStructuredData(email.body);
+        if (structuredAccommodations && structuredAccommodations.length > 0 && requestId) {
+          for (const acc of structuredAccommodations) {
+            await supabase.from("booking_accommodations").insert({
+              request_id: requestId,
+              room_id: acc.room_id || null,
+              treatment_id: acc.treatment_id || null,
+              room_type: null,
+              treatment: null,
+              adults: acc.adults || 1,
+              children: acc.children || 0,
+              notes: acc.notes || null,
+            });
+          }
+        } else if (parsed.accommodations && parsed.accommodations.length > 0 && requestId) {
           for (const acc of parsed.accommodations) {
             await supabase.from("booking_accommodations").insert({
               request_id: requestId,
