@@ -273,6 +273,11 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         const calc = roomCalculations[sr.roomId];
         if (calc) total += calc.total;
       }
+      // Add children price
+      const childrenP = parseFloat(sr.childrenPrice);
+      if (!isNaN(childrenP) && childrenP > 0) {
+        total += childrenP;
+      }
     }
     return total;
   }, [selectedRooms, roomCalculations]);
