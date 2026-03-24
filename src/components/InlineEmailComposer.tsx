@@ -492,7 +492,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                   )}
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Prezzo manuale</Label>
+                    <Label className="text-xs">Prezzo manuale adulti</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -502,6 +502,36 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                       className="h-8 text-sm"
                     />
                   </div>
+
+                  {/* Children fields */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Bambini</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={sr.childrenCount || ""}
+                      onChange={(e) => updateRoomChildrenCount(sr.roomId, parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {sr.childrenCount > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Prezzo bambini (totale soggiorno)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={sr.childrenPrice}
+                        onChange={(e) => updateRoomChildrenPrice(sr.roomId, e.target.value)}
+                        placeholder="Inserisci prezzo bambini"
+                        className={`h-8 text-sm ${sr.childrenCount > 0 && !sr.childrenPrice ? "border-warning ring-1 ring-warning" : ""}`}
+                      />
+                      {!sr.childrenPrice && (
+                        <p className="text-xs text-amber-600">⚠️ Prezzo bambini non inserito</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
