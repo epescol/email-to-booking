@@ -65,28 +65,6 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-emails`;
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    toast.success(`${label} copiato!`);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const examplePayload = JSON.stringify({
-    mode: "webhook",
-    hotel_id: profile?.hotel_id || "IL_TUO_HOTEL_ID",
-    emails: [{
-      subject: "{{ subject }}",
-      body: "{{ textPlain }}",
-      from: "{{ from }}",
-      date: "{{ date }}",
-      message_id: "{{ messageId }}"
-    }]
-  }, null, 2);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
