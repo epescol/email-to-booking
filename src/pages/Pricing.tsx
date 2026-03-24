@@ -75,8 +75,8 @@ export default function Pricing() {
 
   const createPeriod = useMutation({
     mutationFn: async () => {
-      if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
-      const { error } = await supabase.from("price_periods").insert({ ...periodForm, hotel_id: profile.hotel_id });
+      const name = `${periodForm.start_date} - ${periodForm.end_date}`;
+      const { error } = await supabase.from("price_periods").insert({ name, start_date: periodForm.start_date, end_date: periodForm.end_date, hotel_id: profile.hotel_id });
       if (error) throw error;
     },
     onSuccess: () => {
