@@ -191,10 +191,6 @@ export default function Pricing() {
             <DialogContent>
               <DialogHeader><DialogTitle>Nuovo Periodo</DialogTitle></DialogHeader>
               <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createPeriod.mutate(); }}>
-                <div className="space-y-2">
-                  <Label>Nome Periodo</Label>
-                  <Input value={periodForm.name} onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })} required placeholder="es. Alta Stagione" />
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Data Inizio</Label>
