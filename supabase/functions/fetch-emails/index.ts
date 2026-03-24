@@ -357,6 +357,7 @@ interface ParsedAccommodation {
   treatment?: string;
   adults?: number;
   children?: number;
+  children_ages?: string;
   notes?: string;
 }
 
