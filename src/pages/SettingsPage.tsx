@@ -95,62 +95,6 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">Configura le credenziali email e il webhook per il tuo hotel</p>
       </div>
 
-      {/* Webhook Configuration Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Webhook className="h-4 w-4" /> Webhook Ricezione Email
-          </CardTitle>
-          <CardDescription>
-            Configura un servizio esterno (n8n, Zapier, Make) per inviare le email ricevute via IMAP a questo webhook
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Webhook URL</Label>
-            <div className="flex gap-2">
-              <Input value={webhookUrl} readOnly className="font-mono text-xs bg-muted" />
-              <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(webhookUrl, "URL")}>
-                {copied === "URL" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Hotel ID</Label>
-            <div className="flex gap-2">
-              <Input value={profile?.hotel_id || "—"} readOnly className="font-mono text-xs bg-muted" />
-              {profile?.hotel_id && (
-                <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(profile.hotel_id!, "Hotel ID")}>
-                  {copied === "Hotel ID" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              )}
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label>Payload di esempio (JSON)</Label>
-            <div className="relative">
-              <pre className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                {examplePayload}
-              </pre>
-              <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => copyToClipboard(examplePayload, "Payload")}>
-                {copied === "Payload" ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          <Separator />
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">Istruzioni per n8n:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Aggiungi un nodo <strong>IMAP Email</strong> come trigger (con le credenziali sotto)</li>
-              <li>Aggiungi un nodo <strong>HTTP Request</strong> (POST) con l'URL sopra</li>
-              <li>Imposta l'header <code className="bg-muted px-1 rounded">x-webhook-secret</code> con il tuo segreto</li>
-              <li>Usa il payload di esempio adattando i campi n8n</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Room Card Template */}
       <RoomCardTemplateEditor />
 
