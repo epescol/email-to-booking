@@ -130,8 +130,19 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
-        
+        <Button variant="destructive" size="sm" onClick={() => requestDelete(bookingId)} disabled={deleteMutation.isPending}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Elimina
+        </Button>
       </div>
+
+      <ConfirmDelete
+        open={isOpen}
+        onOpenChange={(open) => { if (!open) cancelDelete(); }}
+        onConfirm={() => { cancelDelete(); deleteMutation.mutate(); }}
+        title="Elimina richiesta"
+        description="Sei sicuro di voler eliminare questa richiesta? Verranno eliminati anche tutti i messaggi e le camere associate. Questa azione non può essere annullata."
+      />
 
       <div className="grid grid-cols-1 gap-6">
         <div className="space-y-6">
