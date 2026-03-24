@@ -283,7 +283,7 @@ function extractEmailFromField(from: string | undefined): string | null {
 
 interface StructuredAccommodation {
   room_code?: string;
-  treatment_id?: string;
+  treatment_code?: string;
   adults?: number;
   children?: number;
   notes?: string;
