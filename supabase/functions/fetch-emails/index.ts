@@ -413,7 +413,8 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
             description: "Classifica l'email e, se è una richiesta di prenotazione, estrai i dati",
             parameters: {
               type: "object",
-              properties: {
+               properties: {
+                 is_booking_request: { type: "boolean", description: "true se l'email è una richiesta di prenotazione hotel o una comunicazione relativa a un soggiorno. false se è newsletter, notifica di servizi, spam, email commerciale, comunicazione tecnica o altro non correlato a prenotazioni." },
                 first_name: { type: "string", description: "Nome dell'ospite" },
                 last_name: { type: "string", description: "Cognome dell'ospite" },
                 email: { type: "string", description: "Email dell'ospite" },
