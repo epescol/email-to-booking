@@ -62,9 +62,18 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        // Parse with AI
+        // Check if this is a reply to an existing conversation (always import replies)
+        const isReply = !!(email.in_reply_to || email.references || email.x_hotel_request_id);
+
+        // Parse with AI (includes classification)
         const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
         if (!parsed) continue;
+
+        // Skip non-booking emails that are not replies to existing conversations
+        if (!parsed.is_booking_request && !isReply) {
+          console.log(`Skipping non-booking email: ${email.subject || messageId}`);
+          continue;
+        }
 
         // --- THREADING: try to find existing request ---
         let requestId: string | null = null;
