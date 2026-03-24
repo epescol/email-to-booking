@@ -206,6 +206,15 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     },
   });
 
+  const { data: treatments } = useQuery({
+    queryKey: ["treatments_for_offer"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("treatments").select("*").eq("enabled", true).order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Auto-select rooms based on booking accommodations
   useEffect(() => {
     if (autoSelected || !rooms || rooms.length === 0 || !accommodations || accommodations.length === 0) return;
