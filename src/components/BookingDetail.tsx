@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users } from "lucide-react";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { toast } from "sonner";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
@@ -50,6 +51,23 @@ function formatAlternativeDates(text: string): string {
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
+  const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await supabase.from("booking_accommodations").delete().eq("request_id", bookingId);
+      await supabase.from("booking_messages").delete().eq("request_id", bookingId);
+      const { error } = await supabase.from("booking_requests").delete().eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Richiesta eliminata");
+      queryClient.invalidateQueries({ queryKey: ["booking_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+      onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: booking, refetch } = useQuery({
     queryKey: ["booking", bookingId],
@@ -112,8 +130,19 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
-        
+        <Button variant="destructive" size="sm" onClick={() => requestDelete(bookingId)} disabled={deleteMutation.isPending}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Elimina
+        </Button>
       </div>
+
+      <ConfirmDelete
+        open={isOpen}
+        onOpenChange={(open) => { if (!open) cancelDelete(); }}
+        onConfirm={() => { cancelDelete(); deleteMutation.mutate(); }}
+        title="Elimina richiesta"
+        description="Sei sicuro di voler eliminare questa richiesta? Verranno eliminati anche tutti i messaggi e le camere associate. Questa azione non può essere annullata."
+      />
 
       <div className="grid grid-cols-1 gap-6">
         <div className="space-y-6">
