@@ -341,6 +341,10 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenPrice } : sr));
   };
 
+  const updateRoomTreatment = (roomId: string, treatmentId: string | undefined) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, treatmentId } : sr));
+  };
+
   // Generate rooms HTML for template
   const roomsPreviewHtml = useMemo(() => {
     if (!rooms || selectedRooms.length === 0) return "";
