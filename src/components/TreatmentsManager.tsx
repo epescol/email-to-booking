@@ -42,8 +42,9 @@ export default function TreatmentsManager() {
       const { error } = await supabase.from("treatments").insert({
         hotel_id: profile.hotel_id,
         name: newName.trim(),
+        treatment_code: newCode.trim() || null,
         sort_order: maxSort,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
