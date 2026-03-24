@@ -155,10 +155,26 @@ serve(async (req) => {
         // Insert accommodations: prefer structured XML data, fallback to AI-parsed
         const structuredAccommodations = parseStructuredData(email.body);
         if (structuredAccommodations && structuredAccommodations.length > 0 && requestId) {
+          // Resolve room_code to room_id
+          const roomCodes = structuredAccommodations.map(a => a.room_code).filter(Boolean) as string[];
+          let roomCodeMap: Record<string, string> = {};
+          if (roomCodes.length > 0) {
+            const { data: matchedRooms } = await supabase
+              .from("rooms")
+              .select("id, room_code")
+              .eq("hotel_id", hotelId)
+              .in("room_code", roomCodes);
+            if (matchedRooms) {
+              for (const r of matchedRooms as any[]) {
+                if (r.room_code) roomCodeMap[r.room_code] = r.id;
+              }
+            }
+          }
           for (const acc of structuredAccommodations) {
+            const resolvedRoomId = acc.room_code ? (roomCodeMap[acc.room_code] || null) : null;
             await supabase.from("booking_accommodations").insert({
               request_id: requestId,
-              room_id: acc.room_id || null,
+              room_id: resolvedRoomId,
               treatment_id: acc.treatment_id || null,
               room_type: null,
               treatment: null,
