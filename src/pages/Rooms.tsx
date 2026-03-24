@@ -117,6 +117,15 @@ export default function Rooms() {
               className="space-y-4"
               onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}
             >
+              {editingId && (
+                <div className="space-y-2">
+                  <Label>ID Camera (per XML email)</Label>
+                  <div className="flex gap-2">
+                    <Input value={editingId} readOnly className="font-mono text-xs bg-muted" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(editingId); toast.success("ID copiato"); }}>Copia</Button>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Nome Camera</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
