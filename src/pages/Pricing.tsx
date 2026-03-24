@@ -26,7 +26,7 @@ export default function Pricing() {
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [periodForm, setPeriodForm] = useState({ name: "", start_date: "", end_date: "" });
+  const [periodForm, setPeriodForm] = useState({ start_date: "", end_date: "" });
   const [confirmModeChange, setConfirmModeChange] = useState<PricingMode | null>(null);
 
   const { data: hotel } = useQuery({
