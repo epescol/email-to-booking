@@ -11,6 +11,7 @@ import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
 export default function Templates() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export default function Templates() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
+  const confirm = useConfirmDelete();
 
   const isEditorOpen = isCreating || !!editingId;
 
@@ -167,7 +169,7 @@ export default function Templates() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(t.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(t.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -198,6 +200,13 @@ export default function Templates() {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare template?"
+        description="Il template verrà eliminato definitivamente. Questa azione non può essere annullata."
+      />
     </div>
   );
 }
