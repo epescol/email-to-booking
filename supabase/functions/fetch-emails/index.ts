@@ -309,7 +309,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
     };
     accommodations.push({
       room_code: getAttr("code") || getAttr("room_code"),
-      treatment_id: getAttr("treatment_id"),
+      treatment_code: getAttr("treatment") || getAttr("treatment_code"),
       adults: getAttr("adults") ? parseInt(getAttr("adults")!) : undefined,
       children: getAttr("children") ? parseInt(getAttr("children")!) : undefined,
       notes: getAttr("notes"),
