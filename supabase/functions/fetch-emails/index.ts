@@ -170,12 +170,30 @@ serve(async (req) => {
               }
             }
           }
+
+          // Resolve treatment_code to treatment_id
+          const treatmentCodes = structuredAccommodations.map(a => a.treatment_code).filter(Boolean) as string[];
+          let treatmentCodeMap: Record<string, string> = {};
+          if (treatmentCodes.length > 0) {
+            const { data: matchedTreatments } = await supabase
+              .from("treatments")
+              .select("id, treatment_code")
+              .eq("hotel_id", hotelId)
+              .in("treatment_code", treatmentCodes);
+            if (matchedTreatments) {
+              for (const t of matchedTreatments as any[]) {
+                if (t.treatment_code) treatmentCodeMap[t.treatment_code] = t.id;
+              }
+            }
+          }
+
           for (const acc of structuredAccommodations) {
             const resolvedRoomId = acc.room_code ? (roomCodeMap[acc.room_code] || null) : null;
+            const resolvedTreatmentId = acc.treatment_code ? (treatmentCodeMap[acc.treatment_code] || null) : null;
             await supabase.from("booking_accommodations").insert({
               request_id: requestId,
               room_id: resolvedRoomId,
-              treatment_id: acc.treatment_id || null,
+              treatment_id: resolvedTreatmentId,
               room_type: null,
               treatment: null,
               adults: acc.adults || 1,
