@@ -122,8 +122,14 @@ export default function TreatmentsManager() {
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nuovo trattamento (es. Mezza Pensione)"
+            placeholder="Nome (es. Mezza Pensione)"
             className="flex-1"
+          />
+          <Input
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value)}
+            placeholder="Codice (es. HB)"
+            className="w-28 font-mono text-sm"
           />
           <Button type="submit" size="sm" disabled={!newName.trim() || addTreatment.isPending}>
             <Plus className="h-4 w-4 mr-1" /> Aggiungi
