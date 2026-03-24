@@ -211,6 +211,13 @@ export default function Rooms() {
           ))}
         </div>
       )}
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare camera?"
+        description="La camera verrà eliminata insieme ai relativi prezzi. Questa azione non può essere annullata."
+      />
     </div>
   );
 }
