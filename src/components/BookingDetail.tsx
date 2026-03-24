@@ -215,7 +215,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                     )}
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Users className="h-3.5 w-3.5" />
-                      <span>{acc.adults || 1} adulti{acc.children ? `, ${acc.children} bambini` : ""}</span>
+                      <span>{acc.adults || 1} adulti{acc.children ? `, ${acc.children} bambini${acc.children_ages ? ` (età: ${acc.children_ages})` : ""}` : ""}</span>
                     </div>
                     {acc.notes && <span className="text-muted-foreground italic">{acc.notes}</span>}
                   </div>

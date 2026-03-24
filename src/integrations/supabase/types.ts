@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           adults: number | null
           children: number | null
+          children_ages: string | null
           created_at: string
           id: string
           notes: string | null
@@ -30,6 +31,7 @@ export type Database = {
         Insert: {
           adults?: number | null
           children?: number | null
+          children_ages?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -42,6 +44,7 @@ export type Database = {
         Update: {
           adults?: number | null
           children?: number | null
+          children_ages?: string | null
           created_at?: string
           id?: string
           notes?: string | null

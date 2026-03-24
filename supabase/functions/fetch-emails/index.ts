@@ -207,6 +207,7 @@ serve(async (req) => {
               treatment: null,
               adults: acc.adults || 1,
               children: acc.children || 0,
+              children_ages: acc.children_ages || null,
               notes: acc.notes || null,
             });
           }
@@ -218,6 +219,7 @@ serve(async (req) => {
               treatment: acc.treatment || null,
               adults: acc.adults || 1,
               children: acc.children || 0,
+              children_ages: acc.children_ages || null,
               notes: acc.notes || null,
             });
           }
@@ -313,6 +315,7 @@ interface StructuredAccommodation {
   treatment_code?: string;
   adults?: number;
   children?: number;
+  children_ages?: string;
   notes?: string;
 }
 
@@ -339,6 +342,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
       treatment_code: getAttr("treatment") || getAttr("treatment_code"),
       adults: getAttr("adults") ? parseInt(getAttr("adults")!) : undefined,
       children: getAttr("children") ? parseInt(getAttr("children")!) : undefined,
+      children_ages: getAttr("children_ages"),
       notes: getAttr("notes"),
     });
   }
@@ -353,6 +357,7 @@ interface ParsedAccommodation {
   treatment?: string;
   adults?: number;
   children?: number;
+  children_ages?: string;
   notes?: string;
 }
 
@@ -439,6 +444,7 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
                       treatment: { type: "string", description: "Trattamento richiesto (es. bed and breakfast, mezza pensione, pensione completa)" },
                       adults: { type: "number", description: "Numero di adulti" },
                       children: { type: "number", description: "Numero di bambini" },
+                      children_ages: { type: "string", description: "Età dei bambini separata da virgola (es. '3,7,12')" },
                       notes: { type: "string", description: "Note specifiche per questa camera" },
                     },
                   },

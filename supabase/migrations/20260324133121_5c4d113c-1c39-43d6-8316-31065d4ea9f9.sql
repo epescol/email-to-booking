@@ -1,0 +1,1 @@
+ALTER TABLE public.booking_accommodations ADD COLUMN children_ages text NULL;
