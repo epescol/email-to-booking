@@ -357,6 +357,7 @@ interface ParsedAccommodation {
 }
 
 interface ParsedBooking {
+  is_booking_request: boolean;
   first_name?: string;
   last_name?: string;
   email?: string;
