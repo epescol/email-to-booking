@@ -33,6 +33,7 @@ export default function TreatmentsManager() {
   const queryClient = useQueryClient();
   const { data: treatments } = useTreatments(profile?.hotel_id ?? undefined);
   const [newName, setNewName] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const addTreatment = useMutation({
     mutationFn: async () => {
