@@ -536,7 +536,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                         className={`h-8 text-sm ${sr.childrenCount > 0 && !sr.childrenPrice ? "border-warning ring-1 ring-warning" : ""}`}
                       />
                       {!sr.childrenPrice && (
-                        <p className="text-xs text-amber-600">⚠️ Prezzo bambini non inserito</p>
+                        <p className="text-xs text-destructive">⚠️ Prezzo bambini non inserito</p>
                       )}
                     </div>
                   )}
