@@ -11,6 +11,7 @@ import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
 export default function Templates() {
   const { user } = useAuth();
