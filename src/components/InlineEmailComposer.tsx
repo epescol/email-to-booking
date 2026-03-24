@@ -18,6 +18,8 @@ interface BookingAccommodation {
   id: string;
   room_type: string | null;
   treatment: string | null;
+  room_id: string | null;
+  treatment_id: string | null;
   adults: number | null;
   children: number | null;
   notes: string | null;
