@@ -207,6 +207,7 @@ serve(async (req) => {
               treatment: null,
               adults: acc.adults || 1,
               children: acc.children || 0,
+              children_ages: acc.children_ages || null,
               notes: acc.notes || null,
             });
           }
@@ -218,6 +219,7 @@ serve(async (req) => {
               treatment: acc.treatment || null,
               adults: acc.adults || 1,
               children: acc.children || 0,
+              children_ages: acc.children_ages || null,
               notes: acc.notes || null,
             });
           }
