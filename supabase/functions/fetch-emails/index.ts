@@ -401,7 +401,7 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
         {
           role: "system",
           content:
-            "Sei un assistente che estrae dati di prenotazione hotel dalle email. Rispondi SOLO con la funzione tool_call richiesta.",
+            "Sei un assistente che classifica le email e estrae dati di prenotazione hotel. Prima determina se l'email è una richiesta di prenotazione. Se non lo è, imposta is_booking_request a false e lascia gli altri campi vuoti. Rispondi SOLO con la funzione tool_call richiesta.",
         },
         { role: "user", content: prompt },
       ],
