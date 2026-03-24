@@ -1,0 +1,1 @@
+ALTER TABLE public.rooms ADD COLUMN room_code text;

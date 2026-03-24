@@ -155,10 +155,26 @@ serve(async (req) => {
         // Insert accommodations: prefer structured XML data, fallback to AI-parsed
         const structuredAccommodations = parseStructuredData(email.body);
         if (structuredAccommodations && structuredAccommodations.length > 0 && requestId) {
+          // Resolve room_code to room_id
+          const roomCodes = structuredAccommodations.map(a => a.room_code).filter(Boolean) as string[];
+          let roomCodeMap: Record<string, string> = {};
+          if (roomCodes.length > 0) {
+            const { data: matchedRooms } = await supabase
+              .from("rooms")
+              .select("id, room_code")
+              .eq("hotel_id", hotelId)
+              .in("room_code", roomCodes);
+            if (matchedRooms) {
+              for (const r of matchedRooms as any[]) {
+                if (r.room_code) roomCodeMap[r.room_code] = r.id;
+              }
+            }
+          }
           for (const acc of structuredAccommodations) {
+            const resolvedRoomId = acc.room_code ? (roomCodeMap[acc.room_code] || null) : null;
             await supabase.from("booking_accommodations").insert({
               request_id: requestId,
-              room_id: acc.room_id || null,
+              room_id: resolvedRoomId,
               treatment_id: acc.treatment_id || null,
               room_type: null,
               treatment: null,
@@ -266,7 +282,7 @@ function extractEmailFromField(from: string | undefined): string | null {
 // ---- XML Structured Data Parsing ----
 
 interface StructuredAccommodation {
-  room_id?: string;
+  room_code?: string;
   treatment_id?: string;
   adults?: number;
   children?: number;
@@ -282,7 +298,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
   const xml = match[1].trim();
   const accommodations: StructuredAccommodation[] = [];
 
-  // Parse <room> elements: <room id="uuid" treatment_id="uuid" adults="2" children="0" notes="..."/>
+  // Parse <room> elements: <room code="DBL-101" treatment_id="uuid" adults="2" children="0" notes="..."/>
   const roomRegex = /<room\s+([^>]*?)\/?>/g;
   let roomMatch: RegExpExecArray | null;
   while ((roomMatch = roomRegex.exec(xml)) !== null) {
@@ -292,7 +308,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
       return m ? m[1] : undefined;
     };
     accommodations.push({
-      room_id: getAttr("id") || getAttr("room_id"),
+      room_code: getAttr("code") || getAttr("room_code"),
       treatment_id: getAttr("treatment_id"),
       adults: getAttr("adults") ? parseInt(getAttr("adults")!) : undefined,
       children: getAttr("children") ? parseInt(getAttr("children")!) : undefined,
