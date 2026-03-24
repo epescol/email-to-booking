@@ -53,6 +53,8 @@ interface SelectedRoom {
   roomId: string;
   manualPrice: string;
   occupancy: number | null; // used in per_occupancy mode
+  childrenCount: number;
+  childrenPrice: string; // manual price for children
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
@@ -215,7 +217,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         normalizedType.includes(r.name.toLowerCase().trim())
       );
       if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
-        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1 });
+        const childrenCount = acc.children || 0;
+        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1, childrenCount, childrenPrice: "" });
       }
     }
     
@@ -270,6 +273,11 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         const calc = roomCalculations[sr.roomId];
         if (calc) total += calc.total;
       }
+      // Add children price
+      const childrenP = parseFloat(sr.childrenPrice);
+      if (!isNaN(childrenP) && childrenP > 0) {
+        total += childrenP;
+      }
     }
     return total;
   }, [selectedRooms, roomCalculations]);
@@ -280,7 +288,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const availableRooms = rooms?.filter(r => !selectedRooms.some(sr => sr.roomId === r.id)) ?? [];
 
   const addRoom = (roomId: string) => {
-    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1 }]);
+    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1, childrenCount: 0, childrenPrice: "" }]);
   };
 
   const removeRoom = (roomId: string) => {
@@ -293,6 +301,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   const updateRoomOccupancy = (roomId: string, occupancy: number) => {
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, occupancy } : sr));
+  };
+
+  const updateRoomChildrenCount = (roomId: string, childrenCount: number) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenCount } : sr));
+  };
+
+  const updateRoomChildrenPrice = (roomId: string, childrenPrice: string) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenPrice } : sr));
   };
 
   // Generate rooms HTML for template
@@ -327,6 +343,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     if (!subject.trim() || !body.trim()) {
       toast.error("Compila oggetto e corpo dell'email");
       return;
+    }
+
+    // Check if any room has children without a price
+    const roomsWithChildrenNoPrice = selectedRooms.filter(sr => sr.childrenCount > 0 && !sr.childrenPrice);
+    if (roomsWithChildrenNoPrice.length > 0) {
+      const roomNames = roomsWithChildrenNoPrice.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
+      const confirmed = window.confirm(`Attenzione: le seguenti camere hanno bambini senza prezzo inserito: ${roomNames}.\n\nVuoi inviare comunque l'offerta?`);
+      if (!confirmed) return;
     }
 
     setSending(true);
@@ -476,7 +500,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                   )}
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Prezzo manuale</Label>
+                    <Label className="text-xs">Prezzo manuale adulti</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -486,6 +510,36 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                       className="h-8 text-sm"
                     />
                   </div>
+
+                  {/* Children fields */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Bambini</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={sr.childrenCount || ""}
+                      onChange={(e) => updateRoomChildrenCount(sr.roomId, parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {sr.childrenCount > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Prezzo bambini (totale soggiorno)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={sr.childrenPrice}
+                        onChange={(e) => updateRoomChildrenPrice(sr.roomId, e.target.value)}
+                        placeholder="Inserisci prezzo bambini"
+                        className={`h-8 text-sm ${sr.childrenCount > 0 && !sr.childrenPrice ? "border-warning ring-1 ring-warning" : ""}`}
+                      />
+                      {!sr.childrenPrice && (
+                        <p className="text-xs text-destructive">⚠️ Prezzo bambini non inserito</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
