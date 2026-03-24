@@ -273,9 +273,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     for (const sr of selectedRooms) {
       let filteredPrices: RoomPrice[];
       if (pricingMode === "per_occupancy" && sr.occupancy) {
-        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy);
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy && (!sr.treatmentId || rp.treatment_id === sr.treatmentId));
       } else {
-        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null && (!sr.treatmentId || rp.treatment_id === sr.treatmentId));
       }
       const guests = pricingMode === "per_room" ? (sr.occupancy || 1) : 1;
       result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices, guests);
