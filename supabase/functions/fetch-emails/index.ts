@@ -62,9 +62,18 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        // Parse with AI
+        // Check if this is a reply to an existing conversation (always import replies)
+        const isReply = !!(email.in_reply_to || email.references || email.x_hotel_request_id);
+
+        // Parse with AI (includes classification)
         const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
         if (!parsed) continue;
+
+        // Skip non-booking emails that are not replies to existing conversations
+        if (!parsed.is_booking_request && !isReply) {
+          console.log(`Skipping non-booking email: ${email.subject || messageId}`);
+          continue;
+        }
 
         // --- THREADING: try to find existing request ---
         let requestId: string | null = null;
@@ -348,6 +357,7 @@ interface ParsedAccommodation {
 }
 
 interface ParsedBooking {
+  is_booking_request: boolean;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -369,14 +379,14 @@ async function parseBookingWithAI(
   email: { subject?: string; body?: string; from?: string },
   apiKey: string
 ): Promise<ParsedBooking | null> {
-  const prompt = `Analizza questa email di richiesta prenotazione hotel ed estrai i dati strutturati.
+  const prompt = `Analizza questa email e determina se è una richiesta di prenotazione hotel o una comunicazione correlata a un soggiorno/prenotazione. Se NON è una richiesta di prenotazione (es. newsletter, notifiche di servizi, spam, email commerciali, comunicazioni tecniche), imposta is_booking_request a false.
 
 SOGGETTO: ${email.subject || ""}
 DA: ${email.from || ""}
 CORPO:
 ${(email.body || "").substring(0, 4000)}
 
-Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.
+Se è una richiesta di prenotazione, estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.
 IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, numero adulti/bambini).`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -391,7 +401,7 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
         {
           role: "system",
           content:
-            "Sei un assistente che estrae dati di prenotazione hotel dalle email. Rispondi SOLO con la funzione tool_call richiesta.",
+            "Sei un assistente che classifica le email e estrae dati di prenotazione hotel. Prima determina se l'email è una richiesta di prenotazione. Se non lo è, imposta is_booking_request a false e lascia gli altri campi vuoti. Rispondi SOLO con la funzione tool_call richiesta.",
         },
         { role: "user", content: prompt },
       ],
@@ -400,10 +410,11 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
           type: "function",
           function: {
             name: "extract_booking",
-            description: "Estrai i dati di prenotazione dall'email",
+            description: "Classifica l'email e, se è una richiesta di prenotazione, estrai i dati",
             parameters: {
               type: "object",
-              properties: {
+               properties: {
+                 is_booking_request: { type: "boolean", description: "true se l'email è una richiesta di prenotazione hotel o una comunicazione relativa a un soggiorno. false se è newsletter, notifica di servizi, spam, email commerciale, comunicazione tecnica o altro non correlato a prenotazioni." },
                 first_name: { type: "string", description: "Nome dell'ospite" },
                 last_name: { type: "string", description: "Cognome dell'ospite" },
                 email: { type: "string", description: "Email dell'ospite" },
@@ -433,7 +444,7 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
                   },
                 },
               },
-              required: [],
+              required: ["is_booking_request"],
               additionalProperties: false,
             },
           },
