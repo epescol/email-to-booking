@@ -70,6 +70,15 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
+        // Filter by sender email if configured
+        if (filterSender) {
+          const senderEmail = extractEmailFromField(email.from);
+          if (!senderEmail || senderEmail !== filterSender) {
+            console.log(`Skipping email from non-matching sender: ${email.from || "unknown"}`);
+            continue;
+          }
+        }
+
         // Check if this is a reply to an existing conversation (always import replies)
         const isReply = !!(email.in_reply_to || email.references || email.x_hotel_request_id);
 
