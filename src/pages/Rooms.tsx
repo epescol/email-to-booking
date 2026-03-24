@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
 interface RoomForm {
   name: string;
