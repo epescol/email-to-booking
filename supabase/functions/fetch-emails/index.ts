@@ -266,7 +266,7 @@ function extractEmailFromField(from: string | undefined): string | null {
 // ---- XML Structured Data Parsing ----
 
 interface StructuredAccommodation {
-  room_id?: string;
+  room_code?: string;
   treatment_id?: string;
   adults?: number;
   children?: number;
@@ -282,7 +282,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
   const xml = match[1].trim();
   const accommodations: StructuredAccommodation[] = [];
 
-  // Parse <room> elements: <room id="uuid" treatment_id="uuid" adults="2" children="0" notes="..."/>
+  // Parse <room> elements: <room code="DBL-101" treatment_id="uuid" adults="2" children="0" notes="..."/>
   const roomRegex = /<room\s+([^>]*?)\/?>/g;
   let roomMatch: RegExpExecArray | null;
   while ((roomMatch = roomRegex.exec(xml)) !== null) {
@@ -292,7 +292,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
       return m ? m[1] : undefined;
     };
     accommodations.push({
-      room_id: getAttr("id") || getAttr("room_id"),
+      room_code: getAttr("code") || getAttr("room_code"),
       treatment_id: getAttr("treatment_id"),
       adults: getAttr("adults") ? parseInt(getAttr("adults")!) : undefined,
       children: getAttr("children") ? parseInt(getAttr("children")!) : undefined,
