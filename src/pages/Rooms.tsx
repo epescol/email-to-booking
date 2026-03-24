@@ -14,6 +14,7 @@ import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
 
 interface RoomForm {
   name: string;
+  room_code: string;
   min_occupancy: number;
   max_occupancy: number;
   beds: string;
@@ -25,7 +26,7 @@ interface RoomForm {
 }
 
 const emptyForm: RoomForm = {
-  name: "", min_occupancy: 1, max_occupancy: 2, beds: "",
+  name: "", room_code: "", min_occupancy: 1, max_occupancy: 2, beds: "",
   site_url: "", photo_url_1: "", photo_url_2: "", photo_url_3: "", photo_url_4: "",
 };
 
