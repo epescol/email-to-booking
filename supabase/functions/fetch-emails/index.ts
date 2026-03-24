@@ -50,6 +50,14 @@ serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+      // Load sender filter if configured
+      const { data: emailSettings } = await supabase
+        .from("hotel_email_settings")
+        .select("filter_sender_email")
+        .eq("hotel_id", hotelId)
+        .maybeSingle();
+      const filterSender = emailSettings?.filter_sender_email?.trim().toLowerCase() || null;
+
       let imported = 0;
       for (const email of emails) {
         const messageId = email.message_id || `gen-${Date.now()}-${imported}`;
