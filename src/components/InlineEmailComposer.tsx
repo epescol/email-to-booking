@@ -251,13 +251,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   // Fetch prices for all selected rooms at once
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
+  const selectedTreatmentIds = selectedRooms.map(r => r.treatmentId).filter(Boolean) as string[];
   const { data: allRoomPrices } = useQuery({
-    queryKey: ["room_prices_for_offer", selectedRoomIds],
+    queryKey: ["room_prices_for_offer", selectedRoomIds, selectedTreatmentIds],
     queryFn: async () => {
       if (selectedRoomIds.length === 0) return [];
       const { data, error } = await supabase
         .from("room_prices")
-        .select("room_id, period_id, price_per_night, occupancy")
+        .select("room_id, period_id, price_per_night, occupancy, treatment_id")
         .in("room_id", selectedRoomIds);
       if (error) throw error;
       return data;
