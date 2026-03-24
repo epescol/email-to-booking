@@ -313,6 +313,7 @@ interface StructuredAccommodation {
   treatment_code?: string;
   adults?: number;
   children?: number;
+  children_ages?: string;
   notes?: string;
 }
 
