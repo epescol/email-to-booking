@@ -518,7 +518,25 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                     </div>
                   )}
 
-                  {calc && (
+                  {treatments && treatments.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Trattamento</Label>
+                      <Select
+                        value={sr.treatmentId || ""}
+                        onValueChange={(v) => updateRoomTreatment(sr.roomId, v || undefined)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Seleziona trattamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {treatments.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                     <div className="text-xs space-y-0.5">
                       {calc.breakdown.map((b, i) => (
                         <p key={i} className="text-muted-foreground">
