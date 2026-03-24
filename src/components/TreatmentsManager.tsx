@@ -92,7 +92,12 @@ export default function TreatmentsManager() {
         {treatments?.map((t) => (
           <div key={t.id} className="flex items-center gap-3 py-1">
             <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-            <span className="flex-1 text-sm font-medium">{t.name}</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">{t.name}</span>
+              {(t as any).treatment_code && (
+                <span className="ml-2 text-xs text-muted-foreground font-mono">({(t as any).treatment_code})</span>
+              )}
+            </div>
             <Switch
               checked={t.enabled}
               onCheckedChange={(v) => toggleTreatment.mutate({ id: t.id, enabled: v })}
