@@ -84,6 +84,7 @@ export default function Rooms() {
     setEditingId(room.id);
     setForm({
       name: room.name,
+      room_code: (room as any).room_code || "",
       min_occupancy: room.min_occupancy,
       max_occupancy: room.max_occupancy,
       beds: room.beds || "",
