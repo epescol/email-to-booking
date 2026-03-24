@@ -217,7 +217,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         normalizedType.includes(r.name.toLowerCase().trim())
       );
       if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
-        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1 });
+        const childrenCount = acc.children || 0;
+        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1, childrenCount, childrenPrice: "" });
       }
     }
     
