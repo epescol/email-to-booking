@@ -410,7 +410,7 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
           type: "function",
           function: {
             name: "extract_booking",
-            description: "Estrai i dati di prenotazione dall'email",
+            description: "Classifica l'email e, se è una richiesta di prenotazione, estrai i dati",
             parameters: {
               type: "object",
               properties: {
