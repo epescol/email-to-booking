@@ -175,7 +175,7 @@ export default function TreatmentsManager() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive"
-                  onClick={() => deleteTreatment.mutate(t.id)}
+                  onClick={() => confirm.requestDelete(t.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
