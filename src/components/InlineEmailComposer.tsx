@@ -303,6 +303,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, occupancy } : sr));
   };
 
+  const updateRoomChildrenCount = (roomId: string, childrenCount: number) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenCount } : sr));
+  };
+
+  const updateRoomChildrenPrice = (roomId: string, childrenPrice: string) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenPrice } : sr));
+  };
+
   // Generate rooms HTML for template
   const roomsPreviewHtml = useMemo(() => {
     if (!rooms || selectedRooms.length === 0) return "";
