@@ -83,7 +83,7 @@ export default function Pricing() {
       toast.success("Periodo creato");
       queryClient.invalidateQueries({ queryKey: ["price_periods"] });
       setDialogOpen(false);
-      setPeriodForm({ name: "", start_date: "", end_date: "" });
+      setPeriodForm({ start_date: "", end_date: "" });
     },
     onError: (e) => toast.error(e.message),
   });
