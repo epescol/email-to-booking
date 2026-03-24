@@ -476,6 +476,7 @@ export type Database = {
           photo_url_2: string | null
           photo_url_3: string | null
           photo_url_4: string | null
+          room_code: string | null
           site_url: string | null
           updated_at: string
         }
@@ -491,6 +492,7 @@ export type Database = {
           photo_url_2?: string | null
           photo_url_3?: string | null
           photo_url_4?: string | null
+          room_code?: string | null
           site_url?: string | null
           updated_at?: string
         }
@@ -506,6 +508,7 @@ export type Database = {
           photo_url_2?: string | null
           photo_url_3?: string | null
           photo_url_4?: string | null
+          room_code?: string | null
           site_url?: string | null
           updated_at?: string
         }
