@@ -38,6 +38,7 @@ export default function Rooms() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
+  const confirm = useConfirmDelete();
 
   const { data: rooms, isLoading } = useQuery({
     queryKey: ["rooms"],
