@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,15 +14,10 @@ import { useProfile } from "@/hooks/useProfile";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import TreatmentsManager, { useTreatments } from "@/components/TreatmentsManager";
 
 type PricingMode = "per_room" | "per_occupancy";
 
@@ -39,10 +34,7 @@ export default function Pricing() {
     queryFn: async () => {
       if (!profile?.hotel_id) return null;
       const { data, error } = await supabase
-        .from("hotels")
-        .select("id, pricing_mode")
-        .eq("id", profile.hotel_id)
-        .single();
+        .from("hotels").select("id, pricing_mode").eq("id", profile.hotel_id).single();
       if (error) throw error;
       return data;
     },
@@ -69,7 +61,10 @@ export default function Pricing() {
     },
   });
 
-  const { data: prices, refetch: refetchPrices } = useQuery({
+  const { data: treatments } = useTreatments(profile?.hotel_id ?? undefined);
+  const enabledTreatments = treatments?.filter(t => t.enabled) ?? [];
+
+  const { data: prices } = useQuery({
     queryKey: ["room_prices"],
     queryFn: async () => {
       const { data, error } = await supabase.from("room_prices").select("*");
@@ -81,10 +76,7 @@ export default function Pricing() {
   const createPeriod = useMutation({
     mutationFn: async () => {
       if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
-      const { error } = await supabase.from("price_periods").insert({
-        ...periodForm,
-        hotel_id: profile.hotel_id,
-      });
+      const { error } = await supabase.from("price_periods").insert({ ...periodForm, hotel_id: profile.hotel_id });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -111,59 +103,38 @@ export default function Pricing() {
 
   const updatePrice = useMutation({
     mutationFn: async ({
-      roomId,
-      periodId,
-      price,
-      occupancy,
+      roomId, periodId, price, occupancy, treatmentId,
     }: {
-      roomId: string;
-      periodId: string;
-      price: number;
-      occupancy: number | null;
+      roomId: string; periodId: string; price: number; occupancy: number | null; treatmentId: string | null;
     }) => {
-      // Find existing price matching room, period, and occupancy
       const existing = prices?.find(
         (p) =>
           p.room_id === roomId &&
           p.period_id === periodId &&
-          (occupancy === null ? p.occupancy === null : p.occupancy === occupancy)
+          (occupancy === null ? p.occupancy === null : p.occupancy === occupancy) &&
+          (treatmentId === null ? p.treatment_id === null : p.treatment_id === treatmentId)
       );
       if (existing) {
-        const { error } = await supabase
-          .from("room_prices")
-          .update({ price_per_night: price })
-          .eq("id", existing.id);
+        const { error } = await supabase.from("room_prices").update({ price_per_night: price }).eq("id", existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("room_prices").insert({
-          room_id: roomId,
-          period_id: periodId,
-          price_per_night: price,
-          occupancy,
+          room_id: roomId, period_id: periodId, price_per_night: price, occupancy, treatment_id: treatmentId,
         });
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["room_prices"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["room_prices"] }),
     onError: (e) => toast.error(e.message),
   });
 
   const changePricingMode = useMutation({
     mutationFn: async (newMode: PricingMode) => {
       if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
-      // Delete all existing prices when switching mode
       const { error: deleteError } = await supabase
-        .from("room_prices")
-        .delete()
-        .in("room_id", (rooms ?? []).map((r) => r.id));
+        .from("room_prices").delete().in("room_id", (rooms ?? []).map((r) => r.id));
       if (deleteError) throw deleteError;
-
-      const { error } = await supabase
-        .from("hotels")
-        .update({ pricing_mode: newMode })
-        .eq("id", profile.hotel_id);
+      const { error } = await supabase.from("hotels").update({ pricing_mode: newMode }).eq("id", profile.hotel_id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -176,7 +147,6 @@ export default function Pricing() {
 
   const handleModeChangeRequest = (newMode: PricingMode) => {
     if (newMode === pricingMode) return;
-    // If there are existing prices, warn the user
     if (prices && prices.length > 0) {
       setConfirmModeChange(newMode);
     } else {
@@ -184,14 +154,17 @@ export default function Pricing() {
     }
   };
 
-  const getPrice = (roomId: string, periodId: string, occupancy: number | null = null) => {
+  const getPrice = (roomId: string, periodId: string, occupancy: number | null = null, treatmentId: string | null = null) => {
     return prices?.find(
       (p) =>
         p.room_id === roomId &&
         p.period_id === periodId &&
-        (occupancy === null ? p.occupancy === null : p.occupancy === occupancy)
+        (occupancy === null ? p.occupancy === null : p.occupancy === occupancy) &&
+        (treatmentId === null ? p.treatment_id === null : p.treatment_id === treatmentId)
     )?.price_per_night;
   };
+
+  const hasTreatments = enabledTreatments.length > 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -204,9 +177,7 @@ export default function Pricing() {
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Modalità:</Label>
             <Select value={pricingMode} onValueChange={(v) => handleModeChangeRequest(v as PricingMode)}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="per_room">A persona</SelectItem>
                 <SelectItem value="per_occupancy">A occupazione</SelectItem>
@@ -215,88 +186,56 @@ export default function Pricing() {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuovo Periodo
-              </Button>
+              <Button><Plus className="mr-2 h-4 w-4" />Nuovo Periodo</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nuovo Periodo</DialogTitle>
-              </DialogHeader>
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  createPeriod.mutate();
-                }}
-              >
+              <DialogHeader><DialogTitle>Nuovo Periodo</DialogTitle></DialogHeader>
+              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createPeriod.mutate(); }}>
                 <div className="space-y-2">
                   <Label>Nome Periodo</Label>
-                  <Input
-                    value={periodForm.name}
-                    onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })}
-                    required
-                    placeholder="es. Alta Stagione"
-                  />
+                  <Input value={periodForm.name} onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })} required placeholder="es. Alta Stagione" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Data Inizio</Label>
-                    <Input
-                      type="date"
-                      value={periodForm.start_date}
-                      onChange={(e) => setPeriodForm({ ...periodForm, start_date: e.target.value })}
-                      required
-                    />
+                    <Input type="date" value={periodForm.start_date} onChange={(e) => setPeriodForm({ ...periodForm, start_date: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
                     <Label>Data Fine</Label>
-                    <Input
-                      type="date"
-                      value={periodForm.end_date}
-                      onChange={(e) => setPeriodForm({ ...periodForm, end_date: e.target.value })}
-                      required
-                    />
+                    <Input type="date" value={periodForm.end_date} onChange={(e) => setPeriodForm({ ...periodForm, end_date: e.target.value })} required />
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={createPeriod.isPending}>
-                  Salva
-                </Button>
+                <Button type="submit" className="w-full" disabled={createPeriod.isPending}>Salva</Button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      {/* Confirm mode change dialog */}
+      {/* Confirm mode change */}
       <AlertDialog open={!!confirmModeChange} onOpenChange={(open) => !open && setConfirmModeChange(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Cambiare modalità prezzi?
+              <AlertTriangle className="h-5 w-5 text-destructive" />Cambiare modalità prezzi?
             </AlertDialogTitle>
             <AlertDialogDescription>
               Passando alla modalità "{confirmModeChange === "per_room" ? "A persona" : "A occupazione"}",{" "}
-              <strong>tutti i prezzi esistenti verranno eliminati</strong> e dovrai reinserirli. Questa azione è
-              irreversibile.
+              <strong>tutti i prezzi esistenti verranno eliminati</strong> e dovrai reinserirli.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (confirmModeChange) changePricingMode.mutate(confirmModeChange);
-                setConfirmModeChange(null);
-              }}
+              onClick={() => { if (confirmModeChange) changePricingMode.mutate(confirmModeChange); setConfirmModeChange(null); }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Conferma e azzera prezzi
-            </AlertDialogAction>
+            >Conferma e azzera prezzi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Treatments manager */}
+      <TreatmentsManager />
 
       {!periods?.length || !rooms?.length ? (
         <Card>
@@ -308,40 +247,84 @@ export default function Pricing() {
           </CardContent>
         </Card>
       ) : pricingMode === "per_room" ? (
-        <PerRoomPriceTable
-          rooms={rooms}
-          periods={periods}
-          getPrice={getPrice}
-          updatePrice={updatePrice}
-          deletePeriod={deletePeriod}
+        <PerPersonPriceTable
+          rooms={rooms} periods={periods} treatments={enabledTreatments}
+          getPrice={getPrice} updatePrice={updatePrice} deletePeriod={deletePeriod}
         />
       ) : (
         <PerOccupancyPriceTable
-          rooms={rooms}
-          periods={periods}
-          getPrice={getPrice}
-          updatePrice={updatePrice}
-          deletePeriod={deletePeriod}
+          rooms={rooms} periods={periods} treatments={enabledTreatments}
+          getPrice={getPrice} updatePrice={updatePrice} deletePeriod={deletePeriod}
         />
       )}
     </div>
   );
 }
 
-// --- Per Room table (original) ---
-function PerRoomPriceTable({
-  rooms,
-  periods,
-  getPrice,
-  updatePrice,
-  deletePeriod,
-}: {
-  rooms: any[];
-  periods: any[];
-  getPrice: (roomId: string, periodId: string, occupancy?: number | null) => number | undefined;
+// --- Shared period header ---
+function PeriodHeaders({ periods, deletePeriod }: { periods: any[]; deletePeriod: any }) {
+  return (
+    <>
+      {periods.map((p) => (
+        <TableHead key={p.id} className="text-center min-w-[140px]">
+          <div className="flex items-center justify-center gap-1">
+            <div>
+              <div className="font-medium">{p.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {format(new Date(p.start_date), "dd/MM")} - {format(new Date(p.end_date), "dd/MM")}
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deletePeriod.mutate(p.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </TableHead>
+      ))}
+    </>
+  );
+}
+
+// --- Price input cell ---
+function PriceInput({ roomId, periodId, occupancy, treatmentId, getPrice, updatePrice }: {
+  roomId: string; periodId: string; occupancy: number | null; treatmentId: string | null;
+  getPrice: (r: string, p: string, o: number | null, t: string | null) => number | undefined;
   updatePrice: any;
-  deletePeriod: any;
 }) {
+  return (
+    <Input
+      type="number" step="0.01" min="0"
+      className="w-24 mx-auto text-center" placeholder="€"
+      defaultValue={getPrice(roomId, periodId, occupancy, treatmentId)?.toString() || ""}
+      onBlur={(e) => {
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val)) {
+          updatePrice.mutate({ roomId, periodId, price: val, occupancy, treatmentId });
+        }
+      }}
+    />
+  );
+}
+
+// --- Per Person table ---
+function PerPersonPriceTable({ rooms, periods, treatments, getPrice, updatePrice, deletePeriod }: {
+  rooms: any[]; periods: any[]; treatments: any[];
+  getPrice: (r: string, p: string, o: number | null, t: string | null) => number | undefined;
+  updatePrice: any; deletePeriod: any;
+}) {
+  const hasTreatments = treatments.length > 0;
+
+  // Build rows: each room × each treatment (or just room if no treatments)
+  const rows: { room: any; treatment: any | null; isFirstOfRoom: boolean; roomRowSpan: number }[] = [];
+  for (const room of rooms) {
+    if (hasTreatments) {
+      treatments.forEach((t, i) => {
+        rows.push({ room, treatment: t, isFirstOfRoom: i === 0, roomRowSpan: treatments.length });
+      });
+    } else {
+      rows.push({ room, treatment: null, isFirstOfRoom: true, roomRowSpan: 1 });
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0 overflow-x-auto">
@@ -349,48 +332,24 @@ function PerRoomPriceTable({
           <TableHeader>
             <TableRow>
               <TableHead className="sticky left-0 bg-card z-10">Camera</TableHead>
-              {periods.map((p) => (
-                <TableHead key={p.id} className="text-center min-w-[140px]">
-                  <div className="flex items-center justify-center gap-1">
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(p.start_date), "dd/MM")} - {format(new Date(p.end_date), "dd/MM")}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive"
-                      onClick={() => deletePeriod.mutate(p.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </TableHead>
-              ))}
+              {hasTreatments && <TableHead className="text-center w-[160px]">Trattamento</TableHead>}
+              <PeriodHeaders periods={periods} deletePeriod={deletePeriod} />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rooms.map((room) => (
-              <TableRow key={room.id}>
-                <TableCell className="font-medium sticky left-0 bg-card z-10">{room.name}</TableCell>
+            {rows.map((row, idx) => (
+              <TableRow key={`${row.room.id}-${row.treatment?.id ?? 'none'}`} className={row.isFirstOfRoom ? "border-t-2 border-border" : ""}>
+                {row.isFirstOfRoom && (
+                  <TableCell className="font-medium sticky left-0 bg-card z-10 align-middle" rowSpan={row.roomRowSpan}>
+                    {row.room.name}
+                  </TableCell>
+                )}
+                {hasTreatments && (
+                  <TableCell className="text-center text-sm text-muted-foreground">{row.treatment.name}</TableCell>
+                )}
                 {periods.map((period) => (
                   <TableCell key={period.id} className="text-center">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-24 mx-auto text-center"
-                      placeholder="€"
-                      defaultValue={getPrice(room.id, period.id, null)?.toString() || ""}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) {
-                          updatePrice.mutate({ roomId: room.id, periodId: period.id, price: val, occupancy: null });
-                        }
-                      }}
-                    />
+                    <PriceInput roomId={row.room.id} periodId={period.id} occupancy={null} treatmentId={row.treatment?.id ?? null} getPrice={getPrice} updatePrice={updatePrice} />
                   </TableCell>
                 ))}
               </TableRow>
@@ -403,31 +362,47 @@ function PerRoomPriceTable({
 }
 
 // --- Per Occupancy table ---
-function PerOccupancyPriceTable({
-  rooms,
-  periods,
-  getPrice,
-  updatePrice,
-  deletePeriod,
-}: {
-  rooms: any[];
-  periods: any[];
-  getPrice: (roomId: string, periodId: string, occupancy?: number | null) => number | undefined;
-  updatePrice: any;
-  deletePeriod: any;
+function PerOccupancyPriceTable({ rooms, periods, treatments, getPrice, updatePrice, deletePeriod }: {
+  rooms: any[]; periods: any[]; treatments: any[];
+  getPrice: (r: string, p: string, o: number | null, t: string | null) => number | undefined;
+  updatePrice: any; deletePeriod: any;
 }) {
-  // For each room, generate rows for min_occupancy..max_occupancy
-  const roomRows: { room: any; occupancy: number; isFirst: boolean; rowSpan: number }[] = [];
+  const hasTreatments = treatments.length > 0;
+
+  // Build rows: room × occupancy × treatment
+  const rows: {
+    room: any; occupancy: number; treatment: any | null;
+    isFirstOfRoom: boolean; roomRowSpan: number;
+    isFirstOfOccGroup: boolean; occGroupSpan: number;
+  }[] = [];
+
   for (const room of rooms) {
     const min = room.min_occupancy || 1;
     const max = room.max_occupancy || min;
+    const occCount = max - min + 1;
+    const treatCount = hasTreatments ? treatments.length : 1;
+    const roomSpan = occCount * treatCount;
+
     for (let occ = min; occ <= max; occ++) {
-      roomRows.push({
-        room,
-        occupancy: occ,
-        isFirst: occ === min,
-        rowSpan: max - min + 1,
-      });
+      if (hasTreatments) {
+        treatments.forEach((t, tIdx) => {
+          rows.push({
+            room, occupancy: occ, treatment: t,
+            isFirstOfRoom: occ === min && tIdx === 0,
+            roomRowSpan: roomSpan,
+            isFirstOfOccGroup: tIdx === 0,
+            occGroupSpan: treatCount,
+          });
+        });
+      } else {
+        rows.push({
+          room, occupancy: occ, treatment: null,
+          isFirstOfRoom: occ === min,
+          roomRowSpan: roomSpan,
+          isFirstOfOccGroup: true,
+          occGroupSpan: 1,
+        });
+      }
     }
   }
 
@@ -439,60 +414,29 @@ function PerOccupancyPriceTable({
             <TableRow>
               <TableHead className="sticky left-0 bg-card z-10">Camera</TableHead>
               <TableHead className="text-center w-[80px]">Occ.</TableHead>
-              {periods.map((p) => (
-                <TableHead key={p.id} className="text-center min-w-[140px]">
-                  <div className="flex items-center justify-center gap-1">
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(p.start_date), "dd/MM")} - {format(new Date(p.end_date), "dd/MM")}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive"
-                      onClick={() => deletePeriod.mutate(p.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </TableHead>
-              ))}
+              {hasTreatments && <TableHead className="text-center w-[160px]">Trattamento</TableHead>}
+              <PeriodHeaders periods={periods} deletePeriod={deletePeriod} />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {roomRows.map((row) => (
-              <TableRow key={`${row.room.id}-${row.occupancy}`} className={row.isFirst ? "border-t-2 border-border" : ""}>
-                {row.isFirst && (
-                  <TableCell className="font-medium sticky left-0 bg-card z-10 align-middle" rowSpan={row.rowSpan}>
+            {rows.map((row) => (
+              <TableRow key={`${row.room.id}-${row.occupancy}-${row.treatment?.id ?? 'none'}`} className={row.isFirstOfRoom ? "border-t-2 border-border" : ""}>
+                {row.isFirstOfRoom && (
+                  <TableCell className="font-medium sticky left-0 bg-card z-10 align-middle" rowSpan={row.roomRowSpan}>
                     {row.room.name}
                   </TableCell>
                 )}
-                <TableCell className="text-center text-sm text-muted-foreground">
-                  {row.occupancy} {row.occupancy === 1 ? "pers." : "pers."}
-                </TableCell>
+                {row.isFirstOfOccGroup && (
+                  <TableCell className="text-center text-sm text-muted-foreground" rowSpan={row.occGroupSpan}>
+                    {row.occupancy} pers.
+                  </TableCell>
+                )}
+                {hasTreatments && (
+                  <TableCell className="text-center text-sm text-muted-foreground">{row.treatment.name}</TableCell>
+                )}
                 {periods.map((period) => (
                   <TableCell key={period.id} className="text-center">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-24 mx-auto text-center"
-                      placeholder="€"
-                      defaultValue={getPrice(row.room.id, period.id, row.occupancy)?.toString() || ""}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) {
-                          updatePrice.mutate({
-                            roomId: row.room.id,
-                            periodId: period.id,
-                            price: val,
-                            occupancy: row.occupancy,
-                          });
-                        }
-                      }}
-                    />
+                    <PriceInput roomId={row.room.id} periodId={period.id} occupancy={row.occupancy} treatmentId={row.treatment?.id ?? null} getPrice={getPrice} updatePrice={updatePrice} />
                   </TableCell>
                 ))}
               </TableRow>

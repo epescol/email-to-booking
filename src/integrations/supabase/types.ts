@@ -401,6 +401,7 @@ export type Database = {
           period_id: string
           price_per_night: number
           room_id: string
+          treatment_id: string | null
         }
         Insert: {
           id?: string
@@ -408,6 +409,7 @@ export type Database = {
           period_id: string
           price_per_night?: number
           room_id: string
+          treatment_id?: string | null
         }
         Update: {
           id?: string
@@ -415,6 +417,7 @@ export type Database = {
           period_id?: string
           price_per_night?: number
           room_id?: string
+          treatment_id?: string | null
         }
         Relationships: [
           {
@@ -429,6 +432,13 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_prices_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
         ]
@@ -482,6 +492,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "rooms_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treatments: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          hotel_id: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          hotel_id: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          hotel_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatments_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
