@@ -1,0 +1,1 @@
+ALTER TABLE public.treatments ADD COLUMN treatment_code text;

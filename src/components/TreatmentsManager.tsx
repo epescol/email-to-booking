@@ -33,6 +33,7 @@ export default function TreatmentsManager() {
   const queryClient = useQueryClient();
   const { data: treatments } = useTreatments(profile?.hotel_id ?? undefined);
   const [newName, setNewName] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const addTreatment = useMutation({
     mutationFn: async () => {
@@ -41,13 +42,15 @@ export default function TreatmentsManager() {
       const { error } = await supabase.from("treatments").insert({
         hotel_id: profile.hotel_id,
         name: newName.trim(),
+        treatment_code: newCode.trim() || null,
         sort_order: maxSort,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Trattamento aggiunto");
       setNewName("");
+      setNewCode("");
       queryClient.invalidateQueries({ queryKey: ["treatments"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -89,7 +92,12 @@ export default function TreatmentsManager() {
         {treatments?.map((t) => (
           <div key={t.id} className="flex items-center gap-3 py-1">
             <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-            <span className="flex-1 text-sm font-medium">{t.name}</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">{t.name}</span>
+              {(t as any).treatment_code && (
+                <span className="ml-2 text-xs text-muted-foreground font-mono">({(t as any).treatment_code})</span>
+              )}
+            </div>
             <Switch
               checked={t.enabled}
               onCheckedChange={(v) => toggleTreatment.mutate({ id: t.id, enabled: v })}
@@ -114,8 +122,14 @@ export default function TreatmentsManager() {
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nuovo trattamento (es. Mezza Pensione)"
+            placeholder="Nome (es. Mezza Pensione)"
             className="flex-1"
+          />
+          <Input
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value)}
+            placeholder="Codice (es. HB)"
+            className="w-28 font-mono text-sm"
           />
           <Button type="submit" size="sm" disabled={!newName.trim() || addTreatment.isPending}>
             <Plus className="h-4 w-4 mr-1" /> Aggiungi

@@ -530,6 +530,7 @@ export type Database = {
           id: string
           name: string
           sort_order: number
+          treatment_code: string | null
         }
         Insert: {
           created_at?: string
@@ -538,6 +539,7 @@ export type Database = {
           id?: string
           name: string
           sort_order?: number
+          treatment_code?: string | null
         }
         Update: {
           created_at?: string
@@ -546,6 +548,7 @@ export type Database = {
           id?: string
           name?: string
           sort_order?: number
+          treatment_code?: string | null
         }
         Relationships: [
           {
