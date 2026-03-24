@@ -211,16 +211,33 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     
     const matched: SelectedRoom[] = [];
     for (const acc of accommodations) {
-      if (!acc.room_type) continue;
-      const normalizedType = acc.room_type.toLowerCase().trim();
-      const matchedRoom = rooms.find(r => 
-        r.name.toLowerCase().trim() === normalizedType ||
-        r.name.toLowerCase().trim().includes(normalizedType) ||
-        normalizedType.includes(r.name.toLowerCase().trim())
-      );
-      if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
+      let matchedRoom: typeof rooms[0] | undefined;
+
+      // 1. Prefer direct ID match from structured XML data
+      if (acc.room_id) {
+        matchedRoom = rooms.find(r => r.id === acc.room_id);
+      }
+      
+      // 2. Fallback to name matching (AI-parsed data)
+      if (!matchedRoom && acc.room_type) {
+        const normalizedType = acc.room_type.toLowerCase().trim();
+        matchedRoom = rooms.find(r => 
+          r.name.toLowerCase().trim() === normalizedType ||
+          r.name.toLowerCase().trim().includes(normalizedType) ||
+          normalizedType.includes(r.name.toLowerCase().trim())
+        );
+      }
+
+      if (matchedRoom && !matched.some(m => m.roomId === matchedRoom!.id)) {
         const childrenCount = acc.children || 0;
-        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1, childrenCount, childrenPrice: "" });
+        matched.push({
+          roomId: matchedRoom.id,
+          manualPrice: "",
+          occupancy: acc.adults || matchedRoom.min_occupancy || 1,
+          childrenCount,
+          childrenPrice: "",
+          treatmentId: acc.treatment_id || undefined,
+        });
       }
     }
     
