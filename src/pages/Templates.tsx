@@ -169,7 +169,7 @@ export default function Templates() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(t.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(t.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
