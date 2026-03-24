@@ -339,6 +339,7 @@ function parseStructuredData(body: string | undefined): StructuredAccommodation[
       treatment_code: getAttr("treatment") || getAttr("treatment_code"),
       adults: getAttr("adults") ? parseInt(getAttr("adults")!) : undefined,
       children: getAttr("children") ? parseInt(getAttr("children")!) : undefined,
+      children_ages: getAttr("children_ages"),
       notes: getAttr("notes"),
     });
   }
