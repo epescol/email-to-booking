@@ -26,7 +26,7 @@ export default function Pricing() {
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [periodForm, setPeriodForm] = useState({ name: "", start_date: "", end_date: "" });
+  const [periodForm, setPeriodForm] = useState({ start_date: "", end_date: "" });
   const [confirmModeChange, setConfirmModeChange] = useState<PricingMode | null>(null);
 
   const { data: hotel } = useQuery({
@@ -75,15 +75,15 @@ export default function Pricing() {
 
   const createPeriod = useMutation({
     mutationFn: async () => {
-      if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
-      const { error } = await supabase.from("price_periods").insert({ ...periodForm, hotel_id: profile.hotel_id });
+      const name = `${periodForm.start_date} - ${periodForm.end_date}`;
+      const { error } = await supabase.from("price_periods").insert({ name, start_date: periodForm.start_date, end_date: periodForm.end_date, hotel_id: profile.hotel_id });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Periodo creato");
       queryClient.invalidateQueries({ queryKey: ["price_periods"] });
       setDialogOpen(false);
-      setPeriodForm({ name: "", start_date: "", end_date: "" });
+      setPeriodForm({ start_date: "", end_date: "" });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -191,10 +191,6 @@ export default function Pricing() {
             <DialogContent>
               <DialogHeader><DialogTitle>Nuovo Periodo</DialogTitle></DialogHeader>
               <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createPeriod.mutate(); }}>
-                <div className="space-y-2">
-                  <Label>Nome Periodo</Label>
-                  <Input value={periodForm.name} onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })} required placeholder="es. Alta Stagione" />
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Data Inizio</Label>
@@ -268,11 +264,8 @@ function PeriodHeaders({ periods, deletePeriod }: { periods: any[]; deletePeriod
       {periods.map((p) => (
         <TableHead key={p.id} className="text-center min-w-[140px]">
           <div className="flex items-center justify-center gap-1">
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {format(new Date(p.start_date), "dd/MM")} - {format(new Date(p.end_date), "dd/MM")}
-              </div>
+            <div className="text-xs">
+              {format(new Date(p.start_date), "dd/MM/yyyy")} - {format(new Date(p.end_date), "dd/MM/yyyy")}
             </div>
             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deletePeriod.mutate(p.id)}>
               <Trash2 className="h-3 w-3" />
