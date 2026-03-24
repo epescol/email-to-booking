@@ -202,6 +202,7 @@ export default function Rooms() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">
                 <p>Occupazione: {room.min_occupancy}-{room.max_occupancy} persone</p>
+                {(room as any).room_code && <p className="font-mono text-xs">Codice: {(room as any).room_code}</p>}
                 {room.beds && <p>Letti: {room.beds}</p>}
               </CardContent>
             </Card>
