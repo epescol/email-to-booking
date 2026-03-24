@@ -207,6 +207,13 @@ export default function TreatmentsManager() {
           </Button>
         </form>
       </CardContent>
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteTreatment.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare trattamento?"
+        description="Il trattamento verrà eliminato insieme ai relativi prezzi. Questa azione non può essere annullata."
+      />
     </Card>
   );
 }
