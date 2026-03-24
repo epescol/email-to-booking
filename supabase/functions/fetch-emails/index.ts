@@ -379,14 +379,14 @@ async function parseBookingWithAI(
   email: { subject?: string; body?: string; from?: string },
   apiKey: string
 ): Promise<ParsedBooking | null> {
-  const prompt = `Analizza questa email di richiesta prenotazione hotel ed estrai i dati strutturati.
+  const prompt = `Analizza questa email e determina se è una richiesta di prenotazione hotel o una comunicazione correlata a un soggiorno/prenotazione. Se NON è una richiesta di prenotazione (es. newsletter, notifiche di servizi, spam, email commerciali, comunicazioni tecniche), imposta is_booking_request a false.
 
 SOGGETTO: ${email.subject || ""}
 DA: ${email.from || ""}
 CORPO:
 ${(email.body || "").substring(0, 4000)}
 
-Estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.
+Se è una richiesta di prenotazione, estrai i seguenti campi se presenti. Per le date usa il formato YYYY-MM-DD.
 IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, numero adulti/bambini).`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
