@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, GripVertical, Utensils, Pencil, Check, X } from "lucide-react";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -37,7 +38,7 @@ export default function TreatmentsManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCode, setEditCode] = useState("");
-
+  const confirm = useConfirmDelete();
   const addTreatment = useMutation({
     mutationFn: async () => {
       if (!profile?.hotel_id || !newName.trim()) throw new Error("Nome richiesto");
@@ -174,7 +175,7 @@ export default function TreatmentsManager() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive"
-                  onClick={() => deleteTreatment.mutate(t.id)}
+                  onClick={() => confirm.requestDelete(t.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -206,6 +207,13 @@ export default function TreatmentsManager() {
           </Button>
         </form>
       </CardContent>
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteTreatment.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare trattamento?"
+        description="Il trattamento verrà eliminato insieme ai relativi prezzi. Questa azione non può essere annullata."
+      />
     </Card>
   );
 }

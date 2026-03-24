@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
 interface RoomForm {
   name: string;
@@ -37,6 +38,7 @@ export default function Rooms() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
+  const confirm = useConfirmDelete();
 
   const { data: rooms, isLoading } = useQuery({
     queryKey: ["rooms"],
@@ -194,7 +196,7 @@ export default function Rooms() {
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(room)}>
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(room.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(room.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -209,6 +211,13 @@ export default function Rooms() {
           ))}
         </div>
       )}
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare camera?"
+        description="La camera verrà eliminata insieme ai relativi prezzi. Questa azione non può essere annullata."
+      />
     </div>
   );
 }

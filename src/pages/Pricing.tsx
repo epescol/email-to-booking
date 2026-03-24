@@ -18,6 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TreatmentsManager, { useTreatments } from "@/components/TreatmentsManager";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
 type PricingMode = "per_room" | "per_occupancy";
 
@@ -259,6 +260,7 @@ export default function Pricing() {
 
 // --- Shared period header ---
 function PeriodHeaders({ periods, deletePeriod }: { periods: any[]; deletePeriod: any }) {
+  const confirm = useConfirmDelete();
   return (
     <>
       {periods.map((p) => (
@@ -267,12 +269,19 @@ function PeriodHeaders({ periods, deletePeriod }: { periods: any[]; deletePeriod
             <div className="text-xs">
               {format(new Date(p.start_date), "dd/MM/yyyy")} - {format(new Date(p.end_date), "dd/MM/yyyy")}
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deletePeriod.mutate(p.id)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => confirm.requestDelete(p.id)}>
               <Trash2 className="h-3 w-3" />
             </Button>
           </div>
         </TableHead>
       ))}
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deletePeriod.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare periodo?"
+        description="Il periodo verrà eliminato insieme a tutti i prezzi associati. Questa azione non può essere annullata."
+      />
     </>
   );
 }
