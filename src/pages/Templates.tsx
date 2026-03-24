@@ -200,6 +200,13 @@ export default function Templates() {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDelete
+        open={confirm.isOpen}
+        onOpenChange={(open) => !open && confirm.cancelDelete()}
+        onConfirm={() => { if (confirm.deleteId) deleteMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+        title="Eliminare template?"
+        description="Il template verrà eliminato definitivamente. Questa azione non può essere annullata."
+      />
     </div>
   );
 }
