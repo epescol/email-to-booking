@@ -50,6 +50,14 @@ serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+      // Load sender filter if configured
+      const { data: emailSettings } = await supabase
+        .from("hotel_email_settings")
+        .select("filter_sender_email")
+        .eq("hotel_id", hotelId)
+        .maybeSingle();
+      const filterSender = emailSettings?.filter_sender_email?.trim().toLowerCase() || null;
+
       let imported = 0;
       for (const email of emails) {
         const messageId = email.message_id || `gen-${Date.now()}-${imported}`;
@@ -61,6 +69,15 @@ serve(async (req) => {
           .eq("email_message_id", messageId)
           .maybeSingle();
         if (existing) continue;
+
+        // Filter by sender email if configured
+        if (filterSender) {
+          const senderEmail = extractEmailFromField(email.from);
+          if (!senderEmail || senderEmail !== filterSender) {
+            console.log(`Skipping email from non-matching sender: ${email.from || "unknown"}`);
+            continue;
+          }
+        }
 
         // Check if this is a reply to an existing conversation (always import replies)
         const isReply = !!(email.in_reply_to || email.references || email.x_hotel_request_id);
