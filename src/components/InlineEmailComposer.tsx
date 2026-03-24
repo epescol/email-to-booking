@@ -54,9 +54,10 @@ interface RoomPrice {
 interface SelectedRoom {
   roomId: string;
   manualPrice: string;
-  occupancy: number | null; // used in per_occupancy mode
+  occupancy: number | null;
   childrenCount: number;
-  childrenPrice: string; // manual price for children
+  childrenPrice: string;
+  treatmentId?: string;
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
