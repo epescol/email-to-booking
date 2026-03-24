@@ -22,8 +22,10 @@ export type Database = {
           id: string
           notes: string | null
           request_id: string
+          room_id: string | null
           room_type: string | null
           treatment: string | null
+          treatment_id: string | null
         }
         Insert: {
           adults?: number | null
@@ -32,8 +34,10 @@ export type Database = {
           id?: string
           notes?: string | null
           request_id: string
+          room_id?: string | null
           room_type?: string | null
           treatment?: string | null
+          treatment_id?: string | null
         }
         Update: {
           adults?: number | null
@@ -42,8 +46,10 @@ export type Database = {
           id?: string
           notes?: string | null
           request_id?: string
+          room_id?: string | null
           room_type?: string | null
           treatment?: string | null
+          treatment_id?: string | null
         }
         Relationships: [
           {
@@ -51,6 +57,20 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "booking_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_accommodations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_accommodations_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatments"
             referencedColumns: ["id"]
           },
         ]

@@ -18,6 +18,8 @@ interface BookingAccommodation {
   id: string;
   room_type: string | null;
   treatment: string | null;
+  room_id: string | null;
+  treatment_id: string | null;
   adults: number | null;
   children: number | null;
   notes: string | null;
@@ -52,9 +54,10 @@ interface RoomPrice {
 interface SelectedRoom {
   roomId: string;
   manualPrice: string;
-  occupancy: number | null; // used in per_occupancy mode
+  occupancy: number | null;
   childrenCount: number;
-  childrenPrice: string; // manual price for children
+  childrenPrice: string;
+  treatmentId?: string;
 }
 
 function applyTemplate(template: string, booking: InlineEmailComposerProps["booking"], price?: string, roomsHtml?: string): string {
@@ -203,22 +206,48 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     },
   });
 
+  const { data: treatments } = useQuery({
+    queryKey: ["treatments_for_offer"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("treatments").select("*").eq("enabled", true).order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Auto-select rooms based on booking accommodations
   useEffect(() => {
     if (autoSelected || !rooms || rooms.length === 0 || !accommodations || accommodations.length === 0) return;
     
     const matched: SelectedRoom[] = [];
     for (const acc of accommodations) {
-      if (!acc.room_type) continue;
-      const normalizedType = acc.room_type.toLowerCase().trim();
-      const matchedRoom = rooms.find(r => 
-        r.name.toLowerCase().trim() === normalizedType ||
-        r.name.toLowerCase().trim().includes(normalizedType) ||
-        normalizedType.includes(r.name.toLowerCase().trim())
-      );
-      if (matchedRoom && !matched.some(m => m.roomId === matchedRoom.id)) {
+      let matchedRoom: typeof rooms[0] | undefined;
+
+      // 1. Prefer direct ID match from structured XML data
+      if (acc.room_id) {
+        matchedRoom = rooms.find(r => r.id === acc.room_id);
+      }
+      
+      // 2. Fallback to name matching (AI-parsed data)
+      if (!matchedRoom && acc.room_type) {
+        const normalizedType = acc.room_type.toLowerCase().trim();
+        matchedRoom = rooms.find(r => 
+          r.name.toLowerCase().trim() === normalizedType ||
+          r.name.toLowerCase().trim().includes(normalizedType) ||
+          normalizedType.includes(r.name.toLowerCase().trim())
+        );
+      }
+
+      if (matchedRoom && !matched.some(m => m.roomId === matchedRoom!.id)) {
         const childrenCount = acc.children || 0;
-        matched.push({ roomId: matchedRoom.id, manualPrice: "", occupancy: acc.adults || matchedRoom.min_occupancy || 1, childrenCount, childrenPrice: "" });
+        matched.push({
+          roomId: matchedRoom.id,
+          manualPrice: "",
+          occupancy: acc.adults || matchedRoom.min_occupancy || 1,
+          childrenCount,
+          childrenPrice: "",
+          treatmentId: acc.treatment_id || undefined,
+        });
       }
     }
     
@@ -231,13 +260,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   // Fetch prices for all selected rooms at once
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
+  const selectedTreatmentIds = selectedRooms.map(r => r.treatmentId).filter(Boolean) as string[];
   const { data: allRoomPrices } = useQuery({
-    queryKey: ["room_prices_for_offer", selectedRoomIds],
+    queryKey: ["room_prices_for_offer", selectedRoomIds, selectedTreatmentIds],
     queryFn: async () => {
       if (selectedRoomIds.length === 0) return [];
       const { data, error } = await supabase
         .from("room_prices")
-        .select("room_id, period_id, price_per_night, occupancy")
+        .select("room_id, period_id, price_per_night, occupancy, treatment_id")
         .in("room_id", selectedRoomIds);
       if (error) throw error;
       return data;
@@ -252,9 +282,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     for (const sr of selectedRooms) {
       let filteredPrices: RoomPrice[];
       if (pricingMode === "per_occupancy" && sr.occupancy) {
-        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy);
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === sr.occupancy && (!sr.treatmentId || rp.treatment_id === sr.treatmentId));
       } else {
-        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null);
+        filteredPrices = allRoomPrices.filter(rp => rp.room_id === sr.roomId && rp.occupancy === null && (!sr.treatmentId || rp.treatment_id === sr.treatmentId));
       }
       const guests = pricingMode === "per_room" ? (sr.occupancy || 1) : 1;
       result[sr.roomId] = calculateStayPrice(booking.check_in!, booking.check_out!, pricePeriods, filteredPrices, guests);
@@ -288,7 +318,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const availableRooms = rooms?.filter(r => !selectedRooms.some(sr => sr.roomId === r.id)) ?? [];
 
   const addRoom = (roomId: string) => {
-    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1, childrenCount: 0, childrenPrice: "" }]);
+    setSelectedRooms(prev => [...prev, { roomId, manualPrice: "", occupancy: rooms?.find(r => r.id === roomId)?.min_occupancy || 1, childrenCount: 0, childrenPrice: "", treatmentId: undefined }]);
   };
 
   const removeRoom = (roomId: string) => {
@@ -309,6 +339,10 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   const updateRoomChildrenPrice = (roomId: string, childrenPrice: string) => {
     setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, childrenPrice } : sr));
+  };
+
+  const updateRoomTreatment = (roomId: string, treatmentId: string | undefined) => {
+    setSelectedRooms(prev => prev.map(sr => sr.roomId === roomId ? { ...sr, treatmentId } : sr));
   };
 
   // Generate rooms HTML for template
@@ -478,6 +512,25 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                             <SelectItem key={occ} value={occ.toString()}>
                               {occ} {occ === 1 ? "persona" : "persone"}
                             </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {treatments && treatments.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Trattamento</Label>
+                      <Select
+                        value={sr.treatmentId || ""}
+                        onValueChange={(v) => updateRoomTreatment(sr.roomId, v || undefined)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Seleziona trattamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {treatments.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
