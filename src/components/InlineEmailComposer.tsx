@@ -684,6 +684,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
               content={emailBodyContent}
               onChange={setEmailBodyContent}
               placeholder="Scrivi il contenuto da inserire nel template..."
+              minHeight="360px"
             />
           </div>
         )}
@@ -692,11 +693,24 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         <div className="space-y-1">
           <Label className="text-xs">{selectedTemplate ? "Anteprima Email" : "Corpo Email"}</Label>
           {selectedTemplate ? (
-            <div className="border rounded-md bg-white overflow-hidden">
+          <div className="border rounded-md bg-white overflow-hidden">
               <iframe
                 srcDoc={body}
-                className="w-full min-h-[400px] border-0"
+                className="w-full border-0"
                 title="Email Preview"
+                style={{ minHeight: '400px' }}
+                onLoad={(e) => {
+                  const iframe = e.currentTarget;
+                  const adjustHeight = () => {
+                    if (iframe.contentDocument?.body) {
+                      iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
+                    }
+                  };
+                  adjustHeight();
+                  // Re-adjust after images load
+                  const images = iframe.contentDocument?.querySelectorAll('img');
+                  images?.forEach(img => img.addEventListener('load', adjustHeight));
+                }}
               />
             </div>
           ) : (
