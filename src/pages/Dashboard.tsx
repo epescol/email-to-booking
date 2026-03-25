@@ -18,12 +18,14 @@ const STATUSES = [
   { value: "all", label: "Tutte" },
   { value: "nuova", label: "Nuove" },
   { value: "presa_in_carico", label: "In lavorazione" },
+  { value: "archiviata", label: "Archiviate" },
 ];
 
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
     nuova: "bg-info",
     presa_in_carico: "bg-warning",
+    archiviata: "bg-muted-foreground/50",
   };
   return <span className={`inline-block h-2 w-2 rounded-full ${colors[status] || "bg-muted-foreground"}`} />;
 }
@@ -32,6 +34,7 @@ function StatusLabel({ status }: { status: string }) {
   const labels: Record<string, { text: string; className: string }> = {
     nuova: { text: "Nuova", className: "status-nuova" },
     presa_in_carico: { text: "In lavorazione", className: "status-offerta" },
+    archiviata: { text: "Archiviata", className: "bg-muted text-muted-foreground border-border" },
   };
   const config = labels[status] || { text: status, className: "" };
   return (
@@ -97,6 +100,7 @@ export default function Dashboard() {
 
   // Filter and search
   const filteredBookings = allBookings?.filter((b) => {
+    if (activeFilter === "all" && b.status === "archiviata") return false;
     if (activeFilter !== "all" && b.status !== activeFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -112,7 +116,7 @@ export default function Dashboard() {
     acc[b.status] = (acc[b.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>) ?? {};
-  const totalCount = allBookings?.length ?? 0;
+  const totalCount = (allBookings?.length ?? 0) - (counts["archiviata"] || 0);
 
   if (selectedBookingId) {
     return (
