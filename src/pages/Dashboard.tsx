@@ -14,7 +14,7 @@ import { it } from "date-fns/locale";
 import { BookingDetail } from "@/components/BookingDetail";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import { useMutation } from "@tanstack/react-query";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 
 const STATUSES = [
   { value: "nuova", label: "Nuove", icon: Mail },
