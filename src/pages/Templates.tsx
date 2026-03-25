@@ -57,11 +57,27 @@ export default function Templates() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
+      // If MJML mode, compile to HTML before saving
+      let bodyToSave = form.body_template;
+      if (editorMode === "mjml" && form.mjml_source.trim()) {
+        try {
+          const result = mjml2html(form.mjml_source, { validationLevel: "soft" });
+          bodyToSave = result.html;
+        } catch (e: any) {
+          throw new Error("Errore compilazione MJML: " + e.message);
+        }
+      }
+      const payload = { 
+        name: form.name, 
+        subject_template: form.subject_template, 
+        body_template: bodyToSave, 
+        mjml_source: editorMode === "mjml" ? form.mjml_source : null 
+      } as any;
       if (editingId) {
-        const { error } = await supabase.from("offer_templates").update(form).eq("id", editingId);
+        const { error } = await supabase.from("offer_templates").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("offer_templates").insert({ ...form, hotel_id: profile.hotel_id });
+        const { error } = await supabase.from("offer_templates").insert({ ...payload, hotel_id: profile.hotel_id });
         if (error) throw error;
       }
     },
