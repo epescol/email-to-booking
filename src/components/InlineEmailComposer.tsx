@@ -639,14 +639,24 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           />
         </div>
 
-        {/* WYSIWYG Body */}
+        {/* WYSIWYG Body or MJML Preview */}
         <div className="space-y-1">
           <Label className="text-xs">Corpo Email</Label>
-          <WysiwygEditor
-            content={body}
-            onChange={setBody}
-            placeholder="Scrivi il messaggio..."
-          />
+          {isMjmlTemplate ? (
+            <div className="border rounded-md bg-white overflow-hidden">
+              <iframe
+                srcDoc={body}
+                className="w-full min-h-[400px] border-0"
+                title="Email Preview"
+              />
+            </div>
+          ) : (
+            <WysiwygEditor
+              content={body}
+              onChange={setBody}
+              placeholder="Scrivi il messaggio..."
+            />
+          )}
         </div>
 
         {/* Send button */}
