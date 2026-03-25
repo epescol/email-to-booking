@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
     const { action, ...payload } = await req.json();
 
     if (action === "list") {
-      // Query profiles, roles, and hotels separately (no FK between profiles and user_roles)
       const { data: profiles, error: pErr } = await supabaseAdmin
         .from("profiles")
         .select("*, hotels(name)");
@@ -51,7 +50,6 @@ Deno.serve(async (req) => {
         .select("*");
       if (rErr) throw rErr;
 
-      // Merge roles into profiles
       const result = (profiles || []).map((p: Record<string, unknown>) => ({
         ...p,
         user_roles: (allRoles || []).filter((r: Record<string, unknown>) => r.user_id === p.user_id),
@@ -63,9 +61,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { email, password, display_name, hotel_name, role } = payload;
+      const { email, password, display_name, role } = payload;
 
-      // Input validation
       if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return new Response(JSON.stringify({ error: "Email non valida" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -81,31 +78,26 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (hotel_name && (typeof hotel_name !== "string" || hotel_name.length > 200)) {
-        return new Response(JSON.stringify({ error: "Nome hotel non valido (max 200 caratteri)" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       if (role && !["user", "admin"].includes(role)) {
         return new Response(JSON.stringify({ error: "Ruolo non valido" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Create or find hotel by name
+      // Create or find hotel using display_name
       let hotel_id: string | null = null;
-      if (hotel_name) {
+      if (display_name) {
         const { data: existing } = await supabaseAdmin
           .from("hotels")
           .select("id")
-          .eq("name", hotel_name)
+          .eq("name", display_name)
           .maybeSingle();
         if (existing) {
           hotel_id = existing.id;
         } else {
           const { data: newHotel, error: hotelErr } = await supabaseAdmin
             .from("hotels")
-            .insert({ name: hotel_name })
+            .insert({ name: display_name })
             .select("id")
             .single();
           if (hotelErr) throw hotelErr;
@@ -144,7 +136,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const { user_id, email, display_name, hotel_name, role, password } = payload;
+      const { user_id, email, display_name, role, password } = payload;
 
       if (!user_id) {
         return new Response(JSON.stringify({ error: "user_id richiesto" }), {
@@ -166,6 +158,7 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       // Update auth user
       const updateData: Record<string, unknown> = {};
       if (email) updateData.email = email;
@@ -177,20 +170,20 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
 
-      // Resolve hotel by name
+      // Resolve hotel by display_name
       let hotel_id: string | null = null;
-      if (hotel_name) {
+      if (display_name) {
         const { data: existing } = await supabaseAdmin
           .from("hotels")
           .select("id")
-          .eq("name", hotel_name)
+          .eq("name", display_name)
           .maybeSingle();
         if (existing) {
           hotel_id = existing.id;
         } else {
           const { data: newHotel, error: hotelErr } = await supabaseAdmin
             .from("hotels")
-            .insert({ name: hotel_name })
+            .insert({ name: display_name })
             .select("id")
             .single();
           if (hotelErr) throw hotelErr;
@@ -200,9 +193,11 @@ Deno.serve(async (req) => {
 
       // Update profile
       const profileUpdate: Record<string, unknown> = {};
-      if (display_name) profileUpdate.display_name = display_name;
+      if (display_name) {
+        profileUpdate.display_name = display_name;
+        profileUpdate.hotel_id = hotel_id;
+      }
       if (email) profileUpdate.email = email;
-      if (hotel_name !== undefined) profileUpdate.hotel_id = hotel_id;
 
       if (Object.keys(profileUpdate).length > 0) {
         await supabaseAdmin.from("profiles").update(profileUpdate).eq("user_id", user_id);
@@ -221,13 +216,11 @@ Deno.serve(async (req) => {
     if (action === "delete") {
       const { user_id } = payload;
       
-      // Nullify assigned_to references to preserve booking history
       await supabaseAdmin
         .from("booking_requests")
         .update({ assigned_to: null })
         .eq("assigned_to", user_id);
 
-      // Delete auth user (cascades to profiles and user_roles)
       const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id);
       if (error) throw error;
 
