@@ -227,7 +227,10 @@ export default function AdminTemplates() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}"}
+            Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}, {{email_body}}"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <code className="bg-muted px-1 rounded">{"{{email_body}}"}</code> — Se presente, l'utente potrà inserire un testo libero tramite editor al momento dell'invio
           </p>
 
           <div className="flex gap-3">

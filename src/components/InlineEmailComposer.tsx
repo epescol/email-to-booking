@@ -160,6 +160,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [emailBodyContent, setEmailBodyContent] = useState("");
   const [sending, setSending] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
@@ -366,18 +367,42 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     return !!tpl?.mjml_source;
   }, [selectedTemplate, templates]);
 
+  // Check if template has {{email_body}} placeholder
+  const hasEmailBodyPlaceholder = useMemo(() => {
+    if (!selectedTemplate || !templates) return false;
+    const tpl = templates.find(t => t.id === selectedTemplate);
+    return !!tpl?.body_template?.includes("{{email_body}}");
+  }, [selectedTemplate, templates]);
+
+  // Store the raw template body (before email_body substitution) for live preview
+  const [rawTemplateBody, setRawTemplateBody] = useState("");
+
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
+        setEmailBodyContent(""); // Reset free text on template change
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
-        setBody(htmlBody);
+        if (tpl.body_template.includes("{{email_body}}")) {
+          setRawTemplateBody(htmlBody);
+          setBody(htmlBody.replace(/\{\{email_body\}\}/g, "<p><em>[Inserisci il testo qui]</em></p>"));
+        } else {
+          setRawTemplateBody("");
+          setBody(htmlBody);
+        }
       }
     }
   }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
+
+  // Update body when emailBodyContent changes (for templates with {{email_body}})
+  useEffect(() => {
+    if (hasEmailBodyPlaceholder && rawTemplateBody) {
+      setBody(rawTemplateBody.replace(/\{\{email_body\}\}/g, emailBodyContent || "<p><em>[Inserisci il testo qui]</em></p>"));
+    }
+  }, [emailBodyContent, hasEmailBodyPlaceholder, rawTemplateBody]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) {
@@ -639,9 +664,21 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           />
         </div>
 
+        {/* Email body content editor (for templates with {{email_body}}) */}
+        {hasEmailBodyPlaceholder && (
+          <div className="space-y-1">
+            <Label className="text-xs">Testo libero</Label>
+            <WysiwygEditor
+              content={emailBodyContent}
+              onChange={setEmailBodyContent}
+              placeholder="Scrivi il contenuto da inserire nel template..."
+            />
+          </div>
+        )}
+
         {/* WYSIWYG Body or MJML Preview */}
         <div className="space-y-1">
-          <Label className="text-xs">Corpo Email</Label>
+          <Label className="text-xs">{isMjmlTemplate ? "Anteprima Email" : "Corpo Email"}</Label>
           {isMjmlTemplate ? (
             <div className="border rounded-md bg-white overflow-hidden">
               <iframe
