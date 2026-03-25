@@ -171,12 +171,12 @@ export default function AdminTemplates() {
   // Editor view
   if (isEditorOpen) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] animate-fade-in">
+        <div className="flex items-center gap-3 shrink-0 pb-4">
           <Button variant="ghost" size="icon" onClick={closeEditor}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">
               {editingId ? "Modifica Template" : "Nuovo Template"}
             </h1>
@@ -184,10 +184,14 @@ export default function AdminTemplates() {
               {hotels.find(h => h.id === selectedHotelId)?.name}
             </p>
           </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={closeEditor}>Annulla</Button>
+            <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>Salva Template</Button>
+          </div>
         </div>
 
-        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form className="flex flex-col flex-1 min-h-0 gap-4" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
             <div className="space-y-2">
               <Label>Nome Template</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -198,41 +202,43 @@ export default function AdminTemplates() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Corpo Email</Label>
-              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
-                <Button type="button" variant={editorMode === "wysiwyg" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => setEditorMode("wysiwyg")}>
-                  <Type className="mr-1 h-3 w-3" />Visuale
-                </Button>
-                <Button type="button" variant={editorMode === "mjml" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => { setEditorMode("mjml"); if (form.mjml_source) compileMjml(form.mjml_source); }}>
-                  <Code className="mr-1 h-3 w-3" />MJML
-                </Button>
-              </div>
+          <div className="flex items-center justify-between shrink-0">
+            <Label>Corpo Email</Label>
+            <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+              <Button type="button" variant={editorMode === "wysiwyg" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => setEditorMode("wysiwyg")}>
+                <Type className="mr-1 h-3 w-3" />Visuale
+              </Button>
+              <Button type="button" variant={editorMode === "mjml" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => { setEditorMode("mjml"); if (form.mjml_source) compileMjml(form.mjml_source); }}>
+                <Code className="mr-1 h-3 w-3" />MJML
+              </Button>
             </div>
+          </div>
 
+          <div className="flex-1 min-h-0">
             {editorMode === "wysiwyg" ? (
-              <WysiwygEditor content={form.body_template} onChange={(html) => setForm({ ...form, body_template: html })} placeholder="Scrivi il corpo del template..." />
+              <div className="h-full">
+                <WysiwygEditor content={form.body_template} onChange={(html) => setForm({ ...form, body_template: html })} placeholder="Scrivi il corpo del template..." />
+              </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Codice MJML</Label>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                <div className="flex flex-col min-h-0">
+                  <Label className="text-xs text-muted-foreground mb-1 shrink-0">Codice MJML</Label>
                   <textarea
-                    className="w-full min-h-[400px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                    className="flex-1 w-full font-mono text-xs p-3 rounded-md border border-input bg-background resize-none"
                     value={form.mjml_source}
                     onChange={(e) => { setForm({ ...form, mjml_source: e.target.value }); compileMjml(e.target.value); }}
                     spellCheck={false}
                     placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text>Ciao {{nome}}!</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
                   />
-                  {mjmlError && <p className="text-xs text-destructive">{mjmlError}</p>}
+                  {mjmlError && <p className="text-xs text-destructive mt-1 shrink-0">{mjmlError}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Anteprima HTML</Label>
-                  <div className="border rounded-md bg-white min-h-[400px] overflow-auto">
+                <div className="flex flex-col min-h-0">
+                  <Label className="text-xs text-muted-foreground mb-1 shrink-0">Anteprima HTML</Label>
+                  <div className="flex-1 border rounded-md bg-white overflow-auto">
                     {mjmlPreview ? (
-                      <iframe srcDoc={mjmlPreview} className="w-full min-h-[400px] border-0" title="MJML Preview" />
+                      <iframe srcDoc={mjmlPreview} className="w-full h-full border-0" title="MJML Preview" />
                     ) : (
-                      <div className="flex items-center justify-center h-[400px] text-muted-foreground text-sm">Scrivi codice MJML per vedere l'anteprima</div>
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Scrivi codice MJML per vedere l'anteprima</div>
                     )}
                   </div>
                 </div>
@@ -240,16 +246,10 @@ export default function AdminTemplates() {
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Variabili disponibili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}, {{email_body}}"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <code className="bg-muted px-1 rounded">{"{{email_body}}"}</code> — Se presente, l'utente potrà inserire un testo libero tramite editor al momento dell'invio
-          </p>
-
-          <div className="flex gap-3">
-            <Button type="submit" disabled={saveMutation.isPending}>Salva Template</Button>
-            <Button type="button" variant="outline" onClick={closeEditor}>Annulla</Button>
+          <div className="shrink-0 pb-2">
+            <p className="text-xs text-muted-foreground">
+              Variabili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}, {{email_body}}"} · <code className="bg-muted px-1 rounded">{"{{email_body}}"}</code> attiva un editor di testo libero nell'invio
+            </p>
           </div>
         </form>
       </div>
