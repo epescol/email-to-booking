@@ -24,6 +24,7 @@ const STATUSES = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
   const queryClient = useQueryClient();
   const location = useLocation();
 
