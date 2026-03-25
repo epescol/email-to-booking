@@ -382,14 +382,13 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
+        setEmailBodyContent(""); // Reset free text on template change
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
         if (tpl.body_template.includes("{{email_body}}")) {
-          // Store raw body with placeholder for later substitution
           setRawTemplateBody(htmlBody);
-          // For preview, replace placeholder with current content or placeholder text
-          setBody(htmlBody.replace(/\{\{email_body\}\}/g, emailBodyContent || "<p><em>[Inserisci il testo qui]</em></p>"));
+          setBody(htmlBody.replace(/\{\{email_body\}\}/g, "<p><em>[Inserisci il testo qui]</em></p>"));
         } else {
           setRawTemplateBody("");
           setBody(htmlBody);
