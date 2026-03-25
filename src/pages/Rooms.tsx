@@ -86,7 +86,7 @@ export default function Rooms() {
     setEditingId(room.id);
     setForm({
       name: room.name,
-      room_code: (room as any).room_code || "",
+      room_code: room.room_code || "",
       min_occupancy: room.min_occupancy,
       max_occupancy: room.max_occupancy,
       beds: room.beds || "",
@@ -204,7 +204,7 @@ export default function Rooms() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">
                 <p>Occupazione: {room.min_occupancy}-{room.max_occupancy} persone</p>
-                {(room as any).room_code && <p className="font-mono text-xs">Codice: {(room as any).room_code}</p>}
+                {room.room_code && <p className="font-mono text-xs">Codice: {room.room_code}</p>}
                 {room.beds && <p>Letti: {room.beds}</p>}
               </CardContent>
             </Card>
