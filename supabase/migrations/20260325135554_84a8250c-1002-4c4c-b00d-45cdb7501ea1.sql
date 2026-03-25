@@ -1,0 +1,1 @@
+ALTER TABLE public.hotels ADD COLUMN default_template_id uuid REFERENCES public.offer_templates(id) ON DELETE SET NULL;

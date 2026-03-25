@@ -271,6 +271,7 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          default_template_id: string | null
           email: string | null
           id: string
           name: string
@@ -283,6 +284,7 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          default_template_id?: string | null
           email?: string | null
           id?: string
           name: string
@@ -295,6 +297,7 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          default_template_id?: string | null
           email?: string | null
           id?: string
           name?: string
@@ -304,7 +307,15 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hotels_default_template_id_fkey"
+            columns: ["default_template_id"]
+            isOneToOne: false
+            referencedRelation: "offer_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offer_templates: {
         Row: {
