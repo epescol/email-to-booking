@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft } from "lucide-react";
+import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type } from "lucide-react";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import mjml2html from "mjml-browser";
 
 export default function Templates() {
   const { user } = useAuth();
@@ -20,8 +21,27 @@ export default function Templates() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
+  const [form, setForm] = useState({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+  const [editorMode, setEditorMode] = useState<"wysiwyg" | "mjml">("wysiwyg");
+  const [mjmlPreview, setMjmlPreview] = useState("");
+  const [mjmlError, setMjmlError] = useState("");
   const confirm = useConfirmDelete();
+
+  const compileMjml = useCallback((source: string) => {
+    if (!source.trim()) {
+      setMjmlPreview("");
+      setMjmlError("");
+      return;
+    }
+    try {
+      const result = mjml2html(source, { validationLevel: "soft" });
+      setMjmlPreview(result.html);
+      setMjmlError("");
+    } catch (e: any) {
+      setMjmlError(e.message || "Errore di compilazione MJML");
+      setMjmlPreview("");
+    }
+  }, []);
 
   const isEditorOpen = isCreating || !!editingId;
 
@@ -37,11 +57,27 @@ export default function Templates() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
+      // If MJML mode, compile to HTML before saving
+      let bodyToSave = form.body_template;
+      if (editorMode === "mjml" && form.mjml_source.trim()) {
+        try {
+          const result = mjml2html(form.mjml_source, { validationLevel: "soft" });
+          bodyToSave = result.html;
+        } catch (e: any) {
+          throw new Error("Errore compilazione MJML: " + e.message);
+        }
+      }
+      const payload = { 
+        name: form.name, 
+        subject_template: form.subject_template, 
+        body_template: bodyToSave, 
+        mjml_source: editorMode === "mjml" ? form.mjml_source : null 
+      } as any;
       if (editingId) {
-        const { error } = await supabase.from("offer_templates").update(form).eq("id", editingId);
+        const { error } = await supabase.from("offer_templates").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("offer_templates").insert({ ...form, hotel_id: profile.hotel_id });
+        const { error } = await supabase.from("offer_templates").insert({ ...payload, hotel_id: profile.hotel_id });
         if (error) throw error;
       }
     },
@@ -68,19 +104,29 @@ export default function Templates() {
   const closeEditor = () => {
     setEditingId(null);
     setIsCreating(false);
-    setForm({ name: "", subject_template: "", body_template: "" });
+    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+    setEditorMode("wysiwyg");
+    setMjmlPreview("");
+    setMjmlError("");
   };
 
   const openEdit = (t: any) => {
     setEditingId(t.id);
     setIsCreating(false);
-    setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template });
+    setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template, mjml_source: t.mjml_source || "" });
+    if (t.mjml_source) {
+      setEditorMode("mjml");
+      compileMjml(t.mjml_source);
+    } else {
+      setEditorMode("wysiwyg");
+    }
   };
 
   const openCreate = () => {
     setEditingId(null);
     setIsCreating(true);
-    setForm({ name: "", subject_template: "", body_template: "" });
+    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+    setEditorMode("wysiwyg");
   };
 
   // Editor view
@@ -114,12 +160,75 @@ export default function Templates() {
           </div>
 
           <div className="space-y-2">
-            <Label>Corpo Email</Label>
-            <WysiwygEditor
-              content={form.body_template}
-              onChange={(html) => setForm({ ...form, body_template: html })}
-              placeholder="Scrivi il corpo del template..."
-            />
+            <div className="flex items-center justify-between">
+              <Label>Corpo Email</Label>
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <Button
+                  type="button"
+                  variant={editorMode === "wysiwyg" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setEditorMode("wysiwyg")}
+                >
+                  <Type className="mr-1 h-3 w-3" />Visuale
+                </Button>
+                <Button
+                  type="button"
+                  variant={editorMode === "mjml" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => {
+                    setEditorMode("mjml");
+                    if (form.mjml_source) compileMjml(form.mjml_source);
+                  }}
+                >
+                  <Code className="mr-1 h-3 w-3" />MJML
+                </Button>
+              </div>
+            </div>
+
+            {editorMode === "wysiwyg" ? (
+              <WysiwygEditor
+                content={form.body_template}
+                onChange={(html) => setForm({ ...form, body_template: html })}
+                placeholder="Scrivi il corpo del template..."
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Codice MJML</Label>
+                  <textarea
+                    className="w-full min-h-[400px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                    value={form.mjml_source}
+                    onChange={(e) => {
+                      setForm({ ...form, mjml_source: e.target.value });
+                      compileMjml(e.target.value);
+                    }}
+                    spellCheck={false}
+                    placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text>Ciao {{nome}}!</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
+                  />
+                  {mjmlError && (
+                    <p className="text-xs text-destructive">{mjmlError}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Anteprima HTML</Label>
+                  <div className="border rounded-md bg-white min-h-[400px] overflow-auto">
+                    {mjmlPreview ? (
+                      <iframe
+                        srcDoc={mjmlPreview}
+                        className="w-full min-h-[400px] border-0"
+                        title="MJML Preview"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-[400px] text-muted-foreground text-sm">
+                        Scrivi codice MJML per vedere l'anteprima
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-muted-foreground">
