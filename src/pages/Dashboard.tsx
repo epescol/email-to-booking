@@ -203,6 +203,14 @@ export default function Dashboard() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <ConfirmDelete
+        open={isOpen}
+        onOpenChange={(open) => { if (!open) cancelDelete(); }}
+        onConfirm={() => { if (deleteId) { deleteMutation.mutate(deleteId); cancelDelete(); } }}
+        title="Elimina richiesta"
+        description="Sei sicuro di voler eliminare questa richiesta? Verranno eliminati anche tutti i messaggi e le camere associate."
+      />
     </div>
   );
 }
