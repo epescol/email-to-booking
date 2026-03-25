@@ -21,12 +21,12 @@ const mainItems = [
   { title: "Richieste", url: "/", icon: LayoutDashboard },
   { title: "Camere", url: "/rooms", icon: BedDouble },
   { title: "Listino Prezzi", url: "/pricing", icon: Euro },
-  { title: "Template", url: "/templates", icon: Mail },
   { title: "Impostazioni", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
   { title: "Gestione Utenti", url: "/admin/users", icon: Users },
+  { title: "Template", url: "/admin/templates", icon: Mail },
 ];
 
 export function AppSidebar() {

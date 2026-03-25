@@ -50,25 +50,27 @@ function renderTemplate(template: string, data: Record<string, string>): string 
 
 export { DEFAULT_ROOM_CARD_TEMPLATE, renderTemplate };
 
-export default function RoomCardTemplateEditor() {
+export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }) {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
   const [template, setTemplate] = useState(DEFAULT_ROOM_CARD_TEMPLATE);
   const [showPreview, setShowPreview] = useState(false);
 
+  const effectiveHotelId = hotelId || profile?.hotel_id;
+
   const { data: hotel } = useQuery({
-    queryKey: ["hotel_room_card_template"],
+    queryKey: ["hotel_room_card_template", effectiveHotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
         .select("id, room_card_template")
-        .limit(1)
+        .eq("id", effectiveHotelId!)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!profile?.hotel_id,
+    enabled: !!effectiveHotelId,
   });
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function RoomCardTemplateEditor() {
     },
     onSuccess: () => {
       toast.success("Template card camera salvato");
-      queryClient.invalidateQueries({ queryKey: ["hotel_room_card_template"] });
+      queryClient.invalidateQueries({ queryKey: ["hotel_room_card_template", effectiveHotelId] });
     },
     onError: (e) => toast.error(e.message),
   });
