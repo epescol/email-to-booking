@@ -52,13 +52,27 @@ export default function AdminTemplates() {
 
   // Fetch all hotels (admin can see all)
   const { data: hotels = [] } = useQuery({
-    queryKey: ["admin-hotels"],
+    queryKey: ["admin-hotels-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, name").order("name");
+      const { data, error } = await supabase.from("hotels").select("id, name, default_template_id").order("name");
       if (error) throw error;
       return data;
     },
     enabled: isAdmin,
+  });
+
+  const currentHotel = hotels.find(h => h.id === selectedHotelId);
+
+  const setDefaultTemplateMutation = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const { error } = await supabase.from("hotels").update({ default_template_id: templateId } as any).eq("id", selectedHotelId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Template predefinito aggiornato");
+      queryClient.invalidateQueries({ queryKey: ["admin-hotels-templates"] });
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   // Fetch templates for selected hotel
