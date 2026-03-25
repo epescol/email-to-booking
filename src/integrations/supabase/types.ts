@@ -267,6 +267,42 @@ export type Database = {
           },
         ]
       }
+      hotel_languages: {
+        Row: {
+          hotel_id: string
+          id: string
+          is_default: boolean
+          language_code: string
+        }
+        Insert: {
+          hotel_id: string
+          id?: string
+          is_default?: boolean
+          language_code: string
+        }
+        Update: {
+          hotel_id?: string
+          id?: string
+          is_default?: boolean
+          language_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_languages_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_languages_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       hotels: {
         Row: {
           address: string | null
@@ -317,15 +353,32 @@ export type Database = {
           },
         ]
       }
+      languages: {
+        Row: {
+          code: string
+          name: string
+        }
+        Insert: {
+          code: string
+          name: string
+        }
+        Update: {
+          code?: string
+          name?: string
+        }
+        Relationships: []
+      }
       offer_templates: {
         Row: {
           body_template: string
           created_at: string
           hotel_id: string
           id: string
+          language: string | null
           mjml_source: string | null
           name: string
           subject_template: string | null
+          template_group_id: string | null
           updated_at: string
         }
         Insert: {
@@ -333,9 +386,11 @@ export type Database = {
           created_at?: string
           hotel_id: string
           id?: string
+          language?: string | null
           mjml_source?: string | null
           name: string
           subject_template?: string | null
+          template_group_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -343,9 +398,11 @@ export type Database = {
           created_at?: string
           hotel_id?: string
           id?: string
+          language?: string | null
           mjml_source?: string | null
           name?: string
           subject_template?: string | null
+          template_group_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -355,6 +412,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hotels"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_templates_language_fkey"
+            columns: ["language"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -476,6 +540,42 @@ export type Database = {
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_translations: {
+        Row: {
+          id: string
+          language_code: string
+          name: string
+          room_id: string
+        }
+        Insert: {
+          id?: string
+          language_code: string
+          name: string
+          room_id: string
+        }
+        Update: {
+          id?: string
+          language_code?: string
+          name?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_translations_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "room_translations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
             referencedColumns: ["id"]
           },
         ]
