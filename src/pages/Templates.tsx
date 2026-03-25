@@ -21,8 +21,27 @@ export default function Templates() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", subject_template: "", body_template: "" });
+  const [form, setForm] = useState({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+  const [editorMode, setEditorMode] = useState<"wysiwyg" | "mjml">("wysiwyg");
+  const [mjmlPreview, setMjmlPreview] = useState("");
+  const [mjmlError, setMjmlError] = useState("");
   const confirm = useConfirmDelete();
+
+  const compileMjml = useCallback((source: string) => {
+    if (!source.trim()) {
+      setMjmlPreview("");
+      setMjmlError("");
+      return;
+    }
+    try {
+      const result = mjml2html(source, { validationLevel: "soft" });
+      setMjmlPreview(result.html);
+      setMjmlError("");
+    } catch (e: any) {
+      setMjmlError(e.message || "Errore di compilazione MJML");
+      setMjmlPreview("");
+    }
+  }, []);
 
   const isEditorOpen = isCreating || !!editingId;
 
