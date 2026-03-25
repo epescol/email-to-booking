@@ -10,6 +10,7 @@ import { Plus, BedDouble, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { useHotelLanguages, useLanguages } from "@/hooks/useLanguages";
 import { RoomPhotoUpload } from "@/components/RoomPhotoUpload";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 
@@ -26,6 +27,10 @@ interface RoomForm {
   photo_url_4: string;
 }
 
+interface TranslationMap {
+  [langCode: string]: string;
+}
+
 const emptyForm: RoomForm = {
   name: "", room_code: "", min_occupancy: 1, max_occupancy: 2, beds: "",
   site_url: "", photo_url_1: "", photo_url_2: "", photo_url_3: "", photo_url_4: "",
@@ -34,11 +39,24 @@ const emptyForm: RoomForm = {
 export default function Rooms() {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
+  const { data: hotelLanguages = [] } = useHotelLanguages(profile?.hotel_id);
+  const { data: allLanguages = [] } = useLanguages();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
+  const [translations, setTranslations] = useState<TranslationMap>({});
   const confirm = useConfirmDelete();
+
+  // Get language names for display
+  const hotelLangs = hotelLanguages
+    .map(hl => {
+      const lang = allLanguages.find(l => l.code === hl.language_code);
+      return lang ? { ...hl, name: lang.name } : null;
+    })
+    .filter(Boolean) as (typeof hotelLanguages[0] & { name: string })[];
+
+  const defaultLang = hotelLangs.find(l => l.is_default);
 
   const { data: rooms, isLoading } = useQuery({
     queryKey: ["rooms"],
@@ -49,15 +67,42 @@ export default function Rooms() {
     },
   });
 
+  // Fetch translations for a specific room
+  const fetchTranslations = async (roomId: string): Promise<TranslationMap> => {
+    const { data, error } = await supabase
+      .from("room_translations" as any)
+      .select("*")
+      .eq("room_id", roomId);
+    if (error) return {};
+    const map: TranslationMap = {};
+    (data as unknown as { language_code: string; name: string }[]).forEach(t => {
+      map[t.language_code] = t.name;
+    });
+    return map;
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: RoomForm) => {
       if (!profile?.hotel_id) throw new Error("Nessun hotel associato");
+      let roomId = editingId;
       if (editingId) {
         const { error } = await supabase.from("rooms").update(data).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("rooms").insert({ ...data, hotel_id: profile.hotel_id });
+        const { data: newRoom, error } = await supabase.from("rooms").insert({ ...data, hotel_id: profile.hotel_id }).select("id").single();
         if (error) throw error;
+        roomId = newRoom.id;
+      }
+
+      // Save translations
+      if (roomId) {
+        await supabase.from("room_translations" as any).delete().eq("room_id", roomId);
+        const rows = Object.entries(translations)
+          .filter(([_, name]) => name.trim())
+          .map(([code, name]) => ({ room_id: roomId, language_code: code, name: name.trim() }));
+        if (rows.length > 0) {
+          await supabase.from("room_translations" as any).insert(rows);
+        }
       }
     },
     onSuccess: () => {
@@ -66,6 +111,7 @@ export default function Rooms() {
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
+      setTranslations({});
     },
     onError: (e) => toast.error(e.message),
   });
@@ -82,7 +128,7 @@ export default function Rooms() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEdit = (room: typeof rooms extends (infer T)[] ? T : never) => {
+  const openEdit = async (room: NonNullable<typeof rooms>[0]) => {
     setEditingId(room.id);
     setForm({
       name: room.name,
@@ -96,8 +142,13 @@ export default function Rooms() {
       photo_url_3: room.photo_url_3 || "",
       photo_url_4: room.photo_url_4 || "",
     });
+    const trans = await fetchTranslations(room.id);
+    setTranslations(trans);
     setDialogOpen(true);
   };
+
+  // Non-default languages for translation inputs
+  const nonDefaultLangs = hotelLangs.filter(l => !l.is_default);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -108,7 +159,7 @@ export default function Rooms() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open) { setEditingId(null); setForm(emptyForm); }
+          if (!open) { setEditingId(null); setForm(emptyForm); setTranslations({}); }
         }}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Nuova Camera</Button>
@@ -122,9 +173,30 @@ export default function Rooms() {
               onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(form); }}
             >
               <div className="space-y-2">
-                <Label>Nome Camera</Label>
+                <Label>
+                  Nome Camera
+                  {defaultLang && <span className="text-muted-foreground text-xs ml-1">({defaultLang.name})</span>}
+                </Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
               </div>
+
+              {/* Translation inputs for non-default languages */}
+              {nonDefaultLangs.length > 0 && (
+                <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                  <Label className="text-xs text-muted-foreground">Traduzioni nome camera</Label>
+                  {nonDefaultLangs.map(lang => (
+                    <div key={lang.language_code} className="space-y-1">
+                      <Label className="text-xs">{lang.name} <span className="font-mono uppercase text-muted-foreground">({lang.language_code})</span></Label>
+                      <Input
+                        value={translations[lang.language_code] || ""}
+                        onChange={(e) => setTranslations({ ...translations, [lang.language_code]: e.target.value })}
+                        placeholder={`Nome in ${lang.name}...`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Codice Camera (per mapping XML email)</Label>
                 <Input value={form.room_code} onChange={(e) => setForm({ ...form, room_code: e.target.value })} placeholder="es. DBL-101, suite-panoramica" className="font-mono text-sm" />
