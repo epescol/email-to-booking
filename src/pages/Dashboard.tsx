@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { RefreshCw, Mail, Calendar, User, Eye } from "lucide-react";
+import { RefreshCw, Mail, Calendar, User, Eye, Trash2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { BookingDetail } from "@/components/BookingDetail";
+import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { useMutation } from "@tanstack/react-query";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const STATUSES = [
   { value: "nuova", label: "Nuove", icon: Mail },
@@ -21,6 +24,7 @@ const STATUSES = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("nuova");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
   const queryClient = useQueryClient();
   const location = useLocation();
 
@@ -54,6 +58,21 @@ export default function Dashboard() {
       }
       return results;
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("booking_accommodations").delete().eq("request_id", id);
+      await supabase.from("booking_messages").delete().eq("request_id", id);
+      const { error } = await supabase.from("booking_requests").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Richiesta eliminata");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const handleRefresh = () => {
@@ -153,9 +172,26 @@ export default function Dashboard() {
                             {format(new Date(b.created_at), "dd/MM/yy HH:mm")}
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedBookingId(b.id); }}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Visualizza
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); requestDelete(b.id); }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Elimina
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -167,6 +203,14 @@ export default function Dashboard() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <ConfirmDelete
+        open={isOpen}
+        onOpenChange={(open) => { if (!open) cancelDelete(); }}
+        onConfirm={() => { if (deleteId) { deleteMutation.mutate(deleteId); cancelDelete(); } }}
+        title="Elimina richiesta"
+        description="Sei sicuro di voler eliminare questa richiesta? Verranno eliminati anche tutti i messaggi e le camere associate."
+      />
     </div>
   );
 }
