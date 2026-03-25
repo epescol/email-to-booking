@@ -172,9 +172,26 @@ export default function Dashboard() {
                             {format(new Date(b.created_at), "dd/MM/yy HH:mm")}
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedBookingId(b.id); }}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Visualizza
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); requestDelete(b.id); }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Elimina
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
