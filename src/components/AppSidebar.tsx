@@ -1,4 +1,4 @@
-import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail } from "lucide-react";
+import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail, Languages } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ const mainItems = [
 const adminItems = [
   { title: "Gestione Utenti", url: "/admin/users", icon: Users },
   { title: "Template", url: "/admin/templates", icon: Mail },
+  { title: "Lingue", url: "/admin/languages", icon: Languages },
 ];
 
 export function AppSidebar() {

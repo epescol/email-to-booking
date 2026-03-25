@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Rooms from "./pages/Rooms";
 import Pricing from "./pages/Pricing";
 import AdminTemplates from "./pages/AdminTemplates";
+import AdminLanguages from "./pages/AdminLanguages";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
@@ -39,6 +40,7 @@ function AuthGate() {
           <>
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/templates" element={<AdminTemplates />} />
+            <Route path="/admin/languages" element={<AdminLanguages />} />
             <Route path="*" element={<Navigate to="/admin/users" replace />} />
           </>
         ) : (
