@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import { toast } from "sonner";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2 } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2, Archive, ArchiveRestore } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
@@ -65,6 +65,21 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
       queryClient.invalidateQueries({ queryKey: ["booking_requests"] });
       queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
       onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      const newStatus = booking?.status === "archiviata" ? "nuova" : "archiviata";
+      const { error } = await supabase.from("booking_requests").update({ status: newStatus }).eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      const wasArchived = booking?.status === "archiviata";
+      toast.success(wasArchived ? "Richiesta ripristinata" : "Richiesta archiviata");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["booking_requests_all"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -130,6 +145,18 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             Richiesta del {format(new Date(booking.created_at), "dd MMMM yyyy", { locale: it })}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => archiveMutation.mutate()}
+          disabled={archiveMutation.isPending}
+        >
+          {booking.status === "archiviata" ? (
+            <><ArchiveRestore className="mr-2 h-4 w-4" />Ripristina</>
+          ) : (
+            <><Archive className="mr-2 h-4 w-4" />Archivia</>
+          )}
+        </Button>
         <Button variant="destructive" size="sm" onClick={() => requestDelete(bookingId)} disabled={deleteMutation.isPending}>
           <Trash2 className="mr-2 h-4 w-4" />
           Elimina
