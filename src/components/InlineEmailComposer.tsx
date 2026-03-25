@@ -359,6 +359,13 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     }).join("");
   }, [rooms, selectedRooms, roomCalculations, hotelData?.room_card_template]);
 
+  // Track if current template is MJML-based
+  const isMjmlTemplate = useMemo(() => {
+    if (!selectedTemplate || !templates) return false;
+    const tpl = templates.find(t => t.id === selectedTemplate);
+    return !!tpl?.mjml_source;
+  }, [selectedTemplate, templates]);
+
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
@@ -366,7 +373,6 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       if (tpl) {
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
-        // Template body is already HTML, apply directly
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
         setBody(htmlBody);
       }
