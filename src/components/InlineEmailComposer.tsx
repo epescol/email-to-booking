@@ -665,7 +665,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         </div>
 
         {/* Email body content editor (for templates with {{email_body}}) */}
-        {isMjmlTemplate && hasEmailBodyPlaceholder && (
+        {hasEmailBodyPlaceholder && (
           <div className="space-y-1">
             <Label className="text-xs">Testo libero</Label>
             <WysiwygEditor
