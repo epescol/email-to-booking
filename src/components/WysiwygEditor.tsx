@@ -40,6 +40,7 @@ interface WysiwygEditorProps {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  minHeight?: string;
 }
 
 const EDITOR_CONFIG = {
@@ -105,7 +106,7 @@ const EDITOR_CONFIG = {
   placeholder: "Scrivi il contenuto...",
 };
 
-export function WysiwygEditor({ content, onChange, placeholder }: WysiwygEditorProps) {
+export function WysiwygEditor({ content, onChange, placeholder, minHeight }: WysiwygEditorProps) {
   const editorRef = useRef<ClassicEditor | null>(null);
   const lastExternalContent = useRef(content);
 
@@ -127,7 +128,11 @@ export function WysiwygEditor({ content, onChange, placeholder }: WysiwygEditorP
   };
 
   return (
-    <div className="ckeditor-wrapper rounded-md border border-input bg-background overflow-hidden [&_.ck.ck-editor__main>.ck-editor__editable]:!min-h-[240px] [&_.ck-editor__editable]:max-h-[500px] [&_.ck-editor__editable]:overflow-y-auto [&_.ck.ck-editor__main>.ck-editor__editable]:border-0 [&_.ck.ck-toolbar]:border-0 [&_.ck.ck-toolbar]:border-b [&_.ck.ck-toolbar]:border-input [&_.ck-rounded-corners_.ck.ck-editor__top_.ck-sticky-panel_.ck-toolbar]:rounded-none [&_.ck.ck-editor]:rounded-none">
+    <div
+      className="ckeditor-wrapper rounded-md border border-input bg-background overflow-hidden [&_.ck-editor__editable]:max-h-[500px] [&_.ck-editor__editable]:overflow-y-auto [&_.ck.ck-editor__main>.ck-editor__editable]:border-0 [&_.ck.ck-toolbar]:border-0 [&_.ck.ck-toolbar]:border-b [&_.ck.ck-toolbar]:border-input [&_.ck-rounded-corners_.ck.ck-editor__top_.ck-sticky-panel_.ck-toolbar]:rounded-none [&_.ck.ck-editor]:rounded-none"
+      style={{ ['--ck-editor-min-height' as string]: minHeight || '240px' }}
+    >
+      <style>{`.ckeditor-wrapper .ck.ck-editor__main > .ck-editor__editable { min-height: var(--ck-editor-min-height, 240px) !important; }`}</style>
       <CKEditor
         editor={ClassicEditor}
         config={config}
