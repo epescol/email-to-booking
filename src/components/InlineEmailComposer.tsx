@@ -665,9 +665,21 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           />
         </div>
 
+        {/* Email body content editor (for templates with {{email_body}}) */}
+        {isMjmlTemplate && hasEmailBodyPlaceholder && (
+          <div className="space-y-1">
+            <Label className="text-xs">Testo libero</Label>
+            <WysiwygEditor
+              content={emailBodyContent}
+              onChange={setEmailBodyContent}
+              placeholder="Scrivi il contenuto da inserire nel template..."
+            />
+          </div>
+        )}
+
         {/* WYSIWYG Body or MJML Preview */}
         <div className="space-y-1">
-          <Label className="text-xs">Corpo Email</Label>
+          <Label className="text-xs">{isMjmlTemplate ? "Anteprima Email" : "Corpo Email"}</Label>
           {isMjmlTemplate ? (
             <div className="border rounded-md bg-white overflow-hidden">
               <iframe
