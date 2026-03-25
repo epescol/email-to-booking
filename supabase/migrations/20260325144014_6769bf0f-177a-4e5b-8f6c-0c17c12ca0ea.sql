@@ -1,0 +1,2 @@
+ALTER TABLE booking_requests DROP CONSTRAINT IF EXISTS booking_requests_status_check;
+ALTER TABLE booking_requests ADD CONSTRAINT booking_requests_status_check CHECK (status IN ('nuova', 'presa_in_carico', 'archiviata'));
