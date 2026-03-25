@@ -34,7 +34,7 @@ export default function AdminLanguages() {
     queryFn: async () => {
       const { data, error } = await supabase.from("languages" as any).select("*").order("name");
       if (error) throw error;
-      return data as { code: string; name: string }[];
+      return data as unknown as { code: string; name: string }[];
     },
     enabled: isAdmin,
   });

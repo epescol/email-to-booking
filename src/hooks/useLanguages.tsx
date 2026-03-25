@@ -19,7 +19,7 @@ export function useLanguages() {
     queryFn: async () => {
       const { data, error } = await supabase.from("languages" as any).select("*").order("name");
       if (error) throw error;
-      return data as Language[];
+      return data as unknown as Language[];
     },
   });
 }
@@ -33,7 +33,7 @@ export function useHotelLanguages(hotelId: string | undefined | null) {
         .select("*")
         .eq("hotel_id", hotelId!);
       if (error) throw error;
-      return data as HotelLanguage[];
+      return data as unknown as HotelLanguage[];
     },
     enabled: !!hotelId,
   });
