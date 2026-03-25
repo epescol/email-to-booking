@@ -367,6 +367,16 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     return !!tpl?.mjml_source;
   }, [selectedTemplate, templates]);
 
+  // Check if template has {{email_body}} placeholder
+  const hasEmailBodyPlaceholder = useMemo(() => {
+    if (!selectedTemplate || !templates) return false;
+    const tpl = templates.find(t => t.id === selectedTemplate);
+    return !!tpl?.body_template?.includes("{{email_body}}");
+  }, [selectedTemplate, templates]);
+
+  // Store the raw template body (before email_body substitution) for live preview
+  const [rawTemplateBody, setRawTemplateBody] = useState("");
+
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
@@ -375,10 +385,25 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
-        setBody(htmlBody);
+        if (tpl.body_template.includes("{{email_body}}")) {
+          // Store raw body with placeholder for later substitution
+          setRawTemplateBody(htmlBody);
+          // For preview, replace placeholder with current content or placeholder text
+          setBody(htmlBody.replace(/\{\{email_body\}\}/g, emailBodyContent || "<p><em>[Inserisci il testo qui]</em></p>"));
+        } else {
+          setRawTemplateBody("");
+          setBody(htmlBody);
+        }
       }
     }
   }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
+
+  // Update body when emailBodyContent changes (for templates with {{email_body}})
+  useEffect(() => {
+    if (hasEmailBodyPlaceholder && rawTemplateBody) {
+      setBody(rawTemplateBody.replace(/\{\{email_body\}\}/g, emailBodyContent || "<p><em>[Inserisci il testo qui]</em></p>"));
+    }
+  }, [emailBodyContent, hasEmailBodyPlaceholder, rawTemplateBody]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) {
