@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2, Archive, ArchiveRestore } from "lucide-react";
 import { format } from "date-fns";
@@ -52,6 +53,7 @@ function formatAlternativeDates(text: string): string {
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
   const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -148,7 +150,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => archiveMutation.mutate()}
+          onClick={() => setArchiveConfirmOpen(true)}
           disabled={archiveMutation.isPending}
         >
           {booking.status === "archiviata" ? (
@@ -157,6 +159,26 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
             <><Archive className="mr-2 h-4 w-4" />Archivia</>
           )}
         </Button>
+        <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {booking.status === "archiviata" ? "Ripristinare la richiesta?" : "Archiviare la richiesta?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {booking.status === "archiviata"
+                  ? "La richiesta verrà riportata tra quelle attive."
+                  : "La richiesta verrà spostata nell'archivio e non sarà più visibile nella lista principale."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={() => archiveMutation.mutate()}>
+                {booking.status === "archiviata" ? "Ripristina" : "Archivia"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Button variant="destructive" size="sm" onClick={() => requestDelete(bookingId)} disabled={deleteMutation.isPending}>
           <Trash2 className="mr-2 h-4 w-4" />
           Elimina
