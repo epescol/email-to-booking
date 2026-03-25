@@ -1,0 +1,1 @@
+ALTER TABLE public.offer_templates ADD COLUMN IF NOT EXISTS mjml_source TEXT;

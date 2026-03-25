@@ -312,6 +312,7 @@ export type Database = {
           created_at: string
           hotel_id: string
           id: string
+          mjml_source: string | null
           name: string
           subject_template: string | null
           updated_at: string
@@ -321,6 +322,7 @@ export type Database = {
           created_at?: string
           hotel_id: string
           id?: string
+          mjml_source?: string | null
           name: string
           subject_template?: string | null
           updated_at?: string
@@ -330,6 +332,7 @@ export type Database = {
           created_at?: string
           hotel_id?: string
           id?: string
+          mjml_source?: string | null
           name?: string
           subject_template?: string | null
           updated_at?: string
