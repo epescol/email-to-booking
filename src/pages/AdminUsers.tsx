@@ -232,10 +232,6 @@ export default function AdminUsers() {
               <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Nome Hotel</Label>
-              <Input value={form.hotel_name} onChange={(e) => setForm({ ...form, hotel_name: e.target.value })} placeholder="Es. Hotel Bellavista" />
-            </div>
-            <div className="space-y-2">
               <Label>Ruolo</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger>
