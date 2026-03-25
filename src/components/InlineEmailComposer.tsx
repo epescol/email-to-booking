@@ -676,10 +676,10 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           </div>
         )}
 
-        {/* WYSIWYG Body or MJML Preview */}
+        {/* Body: iframe preview if template selected, WYSIWYG editor if no template */}
         <div className="space-y-1">
-          <Label className="text-xs">{isMjmlTemplate ? "Anteprima Email" : "Corpo Email"}</Label>
-          {isMjmlTemplate ? (
+          <Label className="text-xs">{selectedTemplate ? "Anteprima Email" : "Corpo Email"}</Label>
+          {selectedTemplate ? (
             <div className="border rounded-md bg-white overflow-hidden">
               <iframe
                 srcDoc={body}
