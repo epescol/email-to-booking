@@ -88,19 +88,29 @@ export default function Templates() {
   const closeEditor = () => {
     setEditingId(null);
     setIsCreating(false);
-    setForm({ name: "", subject_template: "", body_template: "" });
+    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+    setEditorMode("wysiwyg");
+    setMjmlPreview("");
+    setMjmlError("");
   };
 
   const openEdit = (t: any) => {
     setEditingId(t.id);
     setIsCreating(false);
-    setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template });
+    setForm({ name: t.name, subject_template: t.subject_template || "", body_template: t.body_template, mjml_source: t.mjml_source || "" });
+    if (t.mjml_source) {
+      setEditorMode("mjml");
+      compileMjml(t.mjml_source);
+    } else {
+      setEditorMode("wysiwyg");
+    }
   };
 
   const openCreate = () => {
     setEditingId(null);
     setIsCreating(true);
-    setForm({ name: "", subject_template: "", body_template: "" });
+    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "" });
+    setEditorMode("wysiwyg");
   };
 
   // Editor view
