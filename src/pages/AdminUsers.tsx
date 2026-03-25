@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Users, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useProfile";
+import { useLanguages, useHotelLanguages } from "@/hooks/useLanguages";
 
 interface UserProfile {
   id: string;
@@ -35,7 +37,6 @@ interface UserFormData {
 const emptyForm: UserFormData = { email: "", password: "", display_name: "", role: "user" };
 
 async function callAdminUsers(action: string, payload: Record<string, unknown> = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
   const res = await supabase.functions.invoke("admin-users", {
     body: { action, ...payload },
   });
@@ -54,14 +55,25 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [form, setForm] = useState<UserFormData>(emptyForm);
+  const [selectedLanguages, setSelectedLanguages] = useState<{ code: string; isDefault: boolean }[]>([]);
+
+  const { data: allLanguages = [] } = useLanguages();
+  const { data: hotelLanguages = [] } = useHotelLanguages(editingUser?.hotel_id);
+
+  // Sync hotel languages when editing
+  useEffect(() => {
+    if (editingUser && hotelLanguages.length > 0) {
+      setSelectedLanguages(hotelLanguages.map(hl => ({ code: hl.language_code, isDefault: hl.is_default })));
+    } else if (editingUser && hotelLanguages.length === 0) {
+      setSelectedLanguages([]);
+    }
+  }, [editingUser?.user_id, hotelLanguages]);
 
   const { data: users = [], isLoading } = useQuery<UserProfile[]>({
     queryKey: ["admin-users"],
     queryFn: () => callAdminUsers("list"),
     enabled: isAdmin,
   });
-
-  // Hotels list no longer needed for dropdown
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -82,9 +94,23 @@ export default function AdminUsers() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Save hotel languages
+      const hotelId = editingUser?.hotel_id || data?.hotel_id;
+      if (hotelId && selectedLanguages.length > 0) {
+        // Delete existing
+        await supabase.from("hotel_languages" as any).delete().eq("hotel_id", hotelId);
+        // Insert new
+        const rows = selectedLanguages.map(sl => ({
+          hotel_id: hotelId,
+          language_code: sl.code,
+          is_default: sl.isDefault,
+        }));
+        await supabase.from("hotel_languages" as any).insert(rows);
+      }
       toast.success(editingUser ? "Utente aggiornato" : "Utente creato");
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["hotel_languages"] });
       closeDialog();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -104,6 +130,7 @@ export default function AdminUsers() {
   function openCreate() {
     setEditingUser(null);
     setForm(emptyForm);
+    setSelectedLanguages([{ code: "it", isDefault: true }]);
     setDialogOpen(true);
   }
 
@@ -127,14 +154,34 @@ export default function AdminUsers() {
     setDialogOpen(false);
     setEditingUser(null);
     setForm(emptyForm);
+    setSelectedLanguages([]);
+  }
+
+  function toggleLanguage(code: string) {
+    setSelectedLanguages(prev => {
+      const exists = prev.find(l => l.code === code);
+      if (exists) {
+        // Don't remove if it's the only one
+        if (prev.length <= 1) return prev;
+        const filtered = prev.filter(l => l.code !== code);
+        // If we removed the default, make first one default
+        if (exists.isDefault && filtered.length > 0) {
+          filtered[0].isDefault = true;
+        }
+        return filtered;
+      }
+      return [...prev, { code, isDefault: prev.length === 0 }];
+    });
+  }
+
+  function setDefaultLanguage(code: string) {
+    setSelectedLanguages(prev =>
+      prev.map(l => ({ ...l, isDefault: l.code === code }))
+    );
   }
 
   if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
-        Accesso non autorizzato
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20 text-muted-foreground">Accesso non autorizzato</div>;
   }
 
   return (
@@ -166,7 +213,6 @@ export default function AdminUsers() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  
                   <TableHead>Ruolo</TableHead>
                   <TableHead className="w-[100px]">Azioni</TableHead>
                 </TableRow>
@@ -176,7 +222,6 @@ export default function AdminUsers() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.display_name || "—"}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    
                     <TableCell>
                       <Badge variant={u.user_roles?.[0]?.role === "admin" ? "default" : "secondary"}>
                         {u.user_roles?.[0]?.role || "user"}
@@ -187,12 +232,7 @@ export default function AdminUsers() {
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDelete(u)}
-                          disabled={u.user_id === user?.id}
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => openDelete(u)} disabled={u.user_id === user?.id}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -207,7 +247,7 @@ export default function AdminUsers() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(o) => !o && closeDialog()}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingUser ? "Modifica Utente" : "Nuovo Utente"}</DialogTitle>
             <DialogDescription>
@@ -216,7 +256,7 @@ export default function AdminUsers() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Nome visualizzato</Label>
+              <Label>Nome</Label>
               <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
             </div>
             <div className="space-y-2">
@@ -230,21 +270,53 @@ export default function AdminUsers() {
             <div className="space-y-2">
               <Label>Ruolo</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Languages */}
+            <div className="space-y-2">
+              <Label>Lingue associate</Label>
+              <p className="text-xs text-muted-foreground">Seleziona le lingue e indica quella predefinita</p>
+              <div className="space-y-2 border rounded-md p-3">
+                {allLanguages.map((lang) => {
+                  const selected = selectedLanguages.find(sl => sl.code === lang.code);
+                  return (
+                    <div key={lang.code} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={!!selected}
+                        onCheckedChange={() => toggleLanguage(lang.code)}
+                      />
+                      <span className="text-sm flex-1">{lang.name} <span className="text-muted-foreground font-mono text-xs uppercase">({lang.code})</span></span>
+                      {selected && (
+                        <Button
+                          type="button"
+                          variant={selected.isDefault ? "default" : "outline"}
+                          size="sm"
+                          className="h-6 text-xs px-2"
+                          onClick={() => setDefaultLanguage(lang.code)}
+                        >
+                          {selected.isDefault ? "Predefinita" : "Imposta predefinita"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+                {allLanguages.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nessuna lingua disponibile. Aggiungile dalla sezione Lingue.</p>
+                )}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>Annulla</Button>
             <Button
               onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || !form.email || (!editingUser && !form.password)}
+              disabled={saveMutation.isPending || !form.email || (!editingUser && !form.password) || selectedLanguages.length === 0}
             >
               {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingUser ? "Salva" : "Crea"}
