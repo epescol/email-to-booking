@@ -160,12 +160,75 @@ export default function Templates() {
           </div>
 
           <div className="space-y-2">
-            <Label>Corpo Email</Label>
-            <WysiwygEditor
-              content={form.body_template}
-              onChange={(html) => setForm({ ...form, body_template: html })}
-              placeholder="Scrivi il corpo del template..."
-            />
+            <div className="flex items-center justify-between">
+              <Label>Corpo Email</Label>
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <Button
+                  type="button"
+                  variant={editorMode === "wysiwyg" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setEditorMode("wysiwyg")}
+                >
+                  <Type className="mr-1 h-3 w-3" />Visuale
+                </Button>
+                <Button
+                  type="button"
+                  variant={editorMode === "mjml" ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => {
+                    setEditorMode("mjml");
+                    if (form.mjml_source) compileMjml(form.mjml_source);
+                  }}
+                >
+                  <Code className="mr-1 h-3 w-3" />MJML
+                </Button>
+              </div>
+            </div>
+
+            {editorMode === "wysiwyg" ? (
+              <WysiwygEditor
+                content={form.body_template}
+                onChange={(html) => setForm({ ...form, body_template: html })}
+                placeholder="Scrivi il corpo del template..."
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Codice MJML</Label>
+                  <textarea
+                    className="w-full min-h-[400px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                    value={form.mjml_source}
+                    onChange={(e) => {
+                      setForm({ ...form, mjml_source: e.target.value });
+                      compileMjml(e.target.value);
+                    }}
+                    spellCheck={false}
+                    placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text>Ciao {{nome}}!</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
+                  />
+                  {mjmlError && (
+                    <p className="text-xs text-destructive">{mjmlError}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Anteprima HTML</Label>
+                  <div className="border rounded-md bg-white min-h-[400px] overflow-auto">
+                    {mjmlPreview ? (
+                      <iframe
+                        srcDoc={mjmlPreview}
+                        className="w-full min-h-[400px] border-0"
+                        title="MJML Preview"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-[400px] text-muted-foreground text-sm">
+                        Scrivi codice MJML per vedere l'anteprima
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-muted-foreground">
