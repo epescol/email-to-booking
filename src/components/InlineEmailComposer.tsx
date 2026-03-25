@@ -175,6 +175,16 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       return data as { id: string; pricing_mode: string; room_card_template: string | null; default_template_id: string | null };
     },
   });
+  const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
+
+  const { data: templates } = useQuery({
+    queryKey: ["offer_templates"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("offer_templates").select("*").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Auto-select default template
   const [defaultApplied, setDefaultApplied] = useState(false);
@@ -187,16 +197,6 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       setDefaultApplied(true);
     }
   }, [hotelData, templates, defaultApplied, selectedTemplate]);
-  const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
-
-  const { data: templates } = useQuery({
-    queryKey: ["offer_templates"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("offer_templates").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const { data: rooms } = useQuery({
     queryKey: ["rooms_for_offer"],
