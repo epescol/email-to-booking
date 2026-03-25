@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft } from "lucide-react";
+import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type } from "lucide-react";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import mjml2html from "mjml-browser";
 
 export default function Templates() {
   const { user } = useAuth();
