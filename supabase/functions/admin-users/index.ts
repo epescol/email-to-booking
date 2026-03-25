@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
           .eq("user_id", newUser.user.id);
       }
 
-      return new Response(JSON.stringify({ id: newUser.user.id }), {
+      return new Response(JSON.stringify({ id: newUser.user.id, hotel_id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
