@@ -166,7 +166,7 @@ export default function AdminUsers() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Hotel</TableHead>
+                  
                   <TableHead>Ruolo</TableHead>
                   <TableHead className="w-[100px]">Azioni</TableHead>
                 </TableRow>
@@ -176,7 +176,7 @@ export default function AdminUsers() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.display_name || "—"}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.hotels?.name || "—"}</TableCell>
+                    
                     <TableCell>
                       <Badge variant={u.user_roles?.[0]?.role === "admin" ? "default" : "secondary"}>
                         {u.user_roles?.[0]?.role || "user"}
