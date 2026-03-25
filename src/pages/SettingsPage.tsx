@@ -73,8 +73,6 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">Configura le credenziali email e il webhook per il tuo hotel</p>
       </div>
 
-      {/* Room Card Template */}
-      <RoomCardTemplateEditor />
 
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
