@@ -166,13 +166,13 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
 
-  // Fetch hotel pricing mode
+  // Fetch hotel pricing mode and default template
   const { data: hotelData } = useQuery({
     queryKey: ["hotel_pricing_mode_composer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, room_card_template").limit(1).single();
+      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, room_card_template, default_template_id").limit(1).single();
       if (error) throw error;
-      return data as { id: string; pricing_mode: string; room_card_template: string | null };
+      return data as { id: string; pricing_mode: string; room_card_template: string | null; default_template_id: string | null };
     },
   });
   const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
@@ -185,6 +185,18 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       return data;
     },
   });
+
+  // Auto-select default template
+  const [defaultApplied, setDefaultApplied] = useState(false);
+  useEffect(() => {
+    if (!defaultApplied && hotelData?.default_template_id && templates && templates.length > 0) {
+      const exists = templates.some(t => t.id === hotelData.default_template_id);
+      if (exists && !selectedTemplate) {
+        setSelectedTemplate(hotelData.default_template_id);
+      }
+      setDefaultApplied(true);
+    }
+  }, [hotelData, templates, defaultApplied, selectedTemplate]);
 
   const { data: rooms } = useQuery({
     queryKey: ["rooms_for_offer"],

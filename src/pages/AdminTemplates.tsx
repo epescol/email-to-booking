@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type } from "lucide-react";
+import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type, Star } from "lucide-react";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,13 +52,27 @@ export default function AdminTemplates() {
 
   // Fetch all hotels (admin can see all)
   const { data: hotels = [] } = useQuery({
-    queryKey: ["admin-hotels"],
+    queryKey: ["admin-hotels-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, name").order("name");
+      const { data, error } = await supabase.from("hotels").select("id, name, default_template_id").order("name");
       if (error) throw error;
       return data;
     },
     enabled: isAdmin,
+  });
+
+  const currentHotel = hotels.find(h => h.id === selectedHotelId);
+
+  const setDefaultTemplateMutation = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const { error } = await supabase.from("hotels").update({ default_template_id: templateId } as any).eq("id", selectedHotelId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Template predefinito aggiornato");
+      queryClient.invalidateQueries({ queryKey: ["admin-hotels-templates"] });
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   // Fetch templates for selected hotel
@@ -277,6 +291,30 @@ export default function AdminTemplates() {
             <h2 className="text-lg font-semibold">Template Email</h2>
             <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
           </div>
+
+          {/* Default template selector */}
+          {templates && templates.length > 0 && (
+            <div className="flex items-center gap-3 max-w-sm">
+              <Star className="h-4 w-4 text-amber-500 shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Template predefinito</Label>
+                <Select
+                  value={currentHotel?.default_template_id || "__none__"}
+                  onValueChange={(v) => setDefaultTemplateMutation.mutate(v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nessuno</SelectItem>
+                    {templates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="text-center text-muted-foreground p-8">Caricamento...</div>
