@@ -18,6 +18,7 @@ const STATUSES = [
   { value: "all", label: "Tutte" },
   { value: "nuova", label: "Nuove" },
   { value: "presa_in_carico", label: "In lavorazione" },
+  { value: "archiviata", label: "Archiviate" },
 ];
 
 function StatusDot({ status }: { status: string }) {
