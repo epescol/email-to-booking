@@ -29,11 +29,10 @@ interface UserFormData {
   email: string;
   password: string;
   display_name: string;
-  hotel_name: string;
   role: string;
 }
 
-const emptyForm: UserFormData = { email: "", password: "", display_name: "", hotel_name: "", role: "user" };
+const emptyForm: UserFormData = { email: "", password: "", display_name: "", role: "user" };
 
 async function callAdminUsers(action: string, payload: Record<string, unknown> = {}) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -71,7 +70,6 @@ export default function AdminUsers() {
           user_id: editingUser.user_id,
           email: form.email,
           display_name: form.display_name,
-          hotel_name: form.hotel_name || null,
           role: form.role,
           ...(form.password ? { password: form.password } : {}),
         });
@@ -80,7 +78,6 @@ export default function AdminUsers() {
           email: form.email,
           password: form.password,
           display_name: form.display_name,
-          hotel_name: form.hotel_name || null,
           role: form.role,
         });
       }
@@ -116,7 +113,6 @@ export default function AdminUsers() {
       email: u.email || "",
       password: "",
       display_name: u.display_name || "",
-      hotel_name: u.hotels?.name || "",
       role: u.user_roles?.[0]?.role || "user",
     });
     setDialogOpen(true);
