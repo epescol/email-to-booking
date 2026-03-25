@@ -292,6 +292,30 @@ export default function AdminTemplates() {
             <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
           </div>
 
+          {/* Default template selector */}
+          {templates && templates.length > 0 && (
+            <div className="flex items-center gap-3 max-w-sm">
+              <Star className="h-4 w-4 text-amber-500 shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Template predefinito</Label>
+                <Select
+                  value={currentHotel?.default_template_id || "__none__"}
+                  onValueChange={(v) => setDefaultTemplateMutation.mutate(v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nessuno</SelectItem>
+                    {templates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center text-muted-foreground p-8">Caricamento...</div>
           ) : !templates?.length ? (
