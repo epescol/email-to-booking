@@ -25,6 +25,7 @@ function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
     nuova: "bg-info",
     presa_in_carico: "bg-warning",
+    archiviata: "bg-muted-foreground/50",
   };
   return <span className={`inline-block h-2 w-2 rounded-full ${colors[status] || "bg-muted-foreground"}`} />;
 }
@@ -33,6 +34,7 @@ function StatusLabel({ status }: { status: string }) {
   const labels: Record<string, { text: string; className: string }> = {
     nuova: { text: "Nuova", className: "status-nuova" },
     presa_in_carico: { text: "In lavorazione", className: "status-offerta" },
+    archiviata: { text: "Archiviata", className: "bg-muted text-muted-foreground border-border" },
   };
   const config = labels[status] || { text: status, className: "" };
   return (
