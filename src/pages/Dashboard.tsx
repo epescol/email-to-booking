@@ -116,7 +116,7 @@ export default function Dashboard() {
     acc[b.status] = (acc[b.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>) ?? {};
-  const totalCount = allBookings?.length ?? 0;
+  const totalCount = (allBookings?.length ?? 0) - (counts["archiviata"] || 0);
 
   if (selectedBookingId) {
     return (
