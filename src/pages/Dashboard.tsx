@@ -100,6 +100,7 @@ export default function Dashboard() {
 
   // Filter and search
   const filteredBookings = allBookings?.filter((b) => {
+    if (activeFilter === "all" && b.status === "archiviata") return false;
     if (activeFilter !== "all" && b.status !== activeFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
