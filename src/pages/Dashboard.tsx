@@ -60,6 +60,21 @@ export default function Dashboard() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("booking_accommodations").delete().eq("request_id", id);
+      await supabase.from("booking_messages").delete().eq("request_id", id);
+      const { error } = await supabase.from("booking_requests").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Richiesta eliminata");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const handleRefresh = () => {
     refetch();
     queryClient.invalidateQueries({ queryKey: ["booking_counts"] });
