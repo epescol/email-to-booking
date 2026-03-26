@@ -303,6 +303,42 @@ export type Database = {
           },
         ]
       }
+      hotel_room_card_templates: {
+        Row: {
+          hotel_id: string
+          id: string
+          language_code: string
+          template: string
+        }
+        Insert: {
+          hotel_id: string
+          id?: string
+          language_code: string
+          template: string
+        }
+        Update: {
+          hotel_id?: string
+          id?: string
+          language_code?: string
+          template?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_room_card_templates_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_room_card_templates_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       hotels: {
         Row: {
           address: string | null

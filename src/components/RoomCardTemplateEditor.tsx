@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { LayoutTemplate, RotateCcw, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useHotelLanguages } from "@/hooks/useLanguages";
 
 const DEFAULT_ROOM_CARD_TEMPLATE = `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
   {{#foto}}<tr><td colspan="2"><img src="{{foto}}" alt="{{nome_camera}}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px 12px 0 0;display:block;" /></td></tr>{{/foto}}
@@ -33,15 +35,12 @@ const PREVIEW_DATA = {
 
 function renderTemplate(template: string, data: Record<string, string>): string {
   let result = template;
-  // Handle conditional sections {{#key}}...{{/key}} — show if key exists
   result = result.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, content) => {
     return data[key] ? content : "";
   });
-  // Handle inverse sections {{^key}}...{{/key}} — show if key missing
   result = result.replace(/\{\{\^(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, content) => {
     return data[key] ? "" : content;
   });
-  // Replace variables
   for (const [key, value] of Object.entries(data)) {
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
   }
@@ -50,57 +49,84 @@ function renderTemplate(template: string, data: Record<string, string>): string 
 
 export { DEFAULT_ROOM_CARD_TEMPLATE, renderTemplate };
 
+interface RoomCardTemplateRecord {
+  id: string;
+  hotel_id: string;
+  language_code: string;
+  template: string;
+}
+
 export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }) {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
-  const [template, setTemplate] = useState(DEFAULT_ROOM_CARD_TEMPLATE);
+  const [templates, setTemplates] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
   const effectiveHotelId = hotelId || profile?.hotel_id;
 
-  const { data: hotel } = useQuery({
-    queryKey: ["hotel_room_card_template", effectiveHotelId],
+  const { data: hotelLanguages = [] } = useHotelLanguages(effectiveHotelId || undefined);
+
+  const { data: savedTemplates = [] } = useQuery<RoomCardTemplateRecord[]>({
+    queryKey: ["hotel_room_card_templates", effectiveHotelId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("hotels")
-        .select("id, room_card_template")
-        .eq("id", effectiveHotelId!)
-        .single();
+        .from("hotel_room_card_templates" as any)
+        .select("*")
+        .eq("hotel_id", effectiveHotelId!);
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!effectiveHotelId,
   });
 
+  // Initialize templates from saved data or defaults
   useEffect(() => {
-    if (hotel?.room_card_template) {
-      setTemplate(hotel.room_card_template);
+    if (hotelLanguages.length === 0) return;
+    const map: Record<string, string> = {};
+    for (const hl of hotelLanguages) {
+      const saved = savedTemplates.find(t => t.language_code === hl.language_code);
+      map[hl.language_code] = saved?.template || DEFAULT_ROOM_CARD_TEMPLATE;
     }
-  }, [hotel]);
+    setTemplates(map);
+    if (!activeTab || !map[activeTab]) {
+      const defaultLang = hotelLanguages.find(hl => hl.is_default)?.language_code || hotelLanguages[0]?.language_code;
+      if (defaultLang) setActiveTab(defaultLang);
+    }
+  }, [hotelLanguages, savedTemplates]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!hotel?.id) throw new Error("Hotel non trovato");
-      const { error } = await supabase
-        .from("hotels")
-        .update({ room_card_template: template } as any)
-        .eq("id", hotel.id);
-      if (error) throw error;
+      if (!effectiveHotelId) throw new Error("Hotel non trovato");
+      // Delete existing and re-insert
+      await supabase.from("hotel_room_card_templates" as any).delete().eq("hotel_id", effectiveHotelId);
+      const rows = Object.entries(templates).map(([lang, tpl]) => ({
+        hotel_id: effectiveHotelId,
+        language_code: lang,
+        template: tpl,
+      }));
+      if (rows.length > 0) {
+        const { error } = await supabase.from("hotel_room_card_templates" as any).insert(rows);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast.success("Template card camera salvato");
-      queryClient.invalidateQueries({ queryKey: ["hotel_room_card_template", effectiveHotelId] });
+      toast.success("Template card camera salvati");
+      queryClient.invalidateQueries({ queryKey: ["hotel_room_card_templates", effectiveHotelId] });
     },
     onError: (e) => toast.error(e.message),
   });
 
   const resetToDefault = () => {
-    setTemplate(DEFAULT_ROOM_CARD_TEMPLATE);
-    toast.info("Template ripristinato al default");
+    if (activeTab) {
+      setTemplates(prev => ({ ...prev, [activeTab]: DEFAULT_ROOM_CARD_TEMPLATE }));
+      toast.info("Template ripristinato al default");
+    }
   };
 
-  const previewHtml = renderTemplate(template, PREVIEW_DATA);
+  const currentTemplate = templates[activeTab] || DEFAULT_ROOM_CARD_TEMPLATE;
+  const previewHtml = renderTemplate(currentTemplate, PREVIEW_DATA);
 
   return (
     <>
@@ -114,15 +140,33 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Codice HTML</Label>
-            <textarea
-              className="w-full min-h-[200px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
+          {hotelLanguages.length > 0 ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                {hotelLanguages.map(hl => (
+                  <TabsTrigger key={hl.language_code} value={hl.language_code}>
+                    {hl.language_code.toUpperCase()}
+                    {hl.is_default && " ★"}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {hotelLanguages.map(hl => (
+                <TabsContent key={hl.language_code} value={hl.language_code}>
+                  <div className="space-y-2">
+                    <Label>Codice HTML — {hl.language_code.toUpperCase()}</Label>
+                    <textarea
+                      className="w-full min-h-[200px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                      value={templates[hl.language_code] || DEFAULT_ROOM_CARD_TEMPLATE}
+                      onChange={(e) => setTemplates(prev => ({ ...prev, [hl.language_code]: e.target.value }))}
+                      spellCheck={false}
+                    />
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nessuna lingua associata a questo hotel.</p>
+          )}
 
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-medium">Variabili disponibili:</p>
@@ -140,13 +184,13 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
           </div>
 
           <div className="flex gap-2">
-            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || hotelLanguages.length === 0}>
               {saveMutation.isPending ? "Salvataggio..." : "Salva Template"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setShowPreview(true)}>
+            <Button type="button" variant="outline" onClick={() => setShowPreview(true)} disabled={hotelLanguages.length === 0}>
               <Eye className="mr-2 h-4 w-4" />Anteprima
             </Button>
-            <Button type="button" variant="ghost" onClick={resetToDefault}>
+            <Button type="button" variant="ghost" onClick={resetToDefault} disabled={hotelLanguages.length === 0}>
               <RotateCcw className="mr-2 h-4 w-4" />Ripristina Default
             </Button>
           </div>
@@ -156,7 +200,7 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Anteprima Card Camera</DialogTitle>
+            <DialogTitle>Anteprima Card Camera — {activeTab.toUpperCase()}</DialogTitle>
           </DialogHeader>
           <div className="border rounded-lg p-4 bg-white">
             <div dangerouslySetInnerHTML={{ __html: previewHtml }} />

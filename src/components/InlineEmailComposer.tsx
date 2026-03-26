@@ -33,6 +33,7 @@ interface InlineEmailComposerProps {
     email: string | null;
     check_in: string | null;
     check_out: string | null;
+    language: string | null;
   };
   accommodations?: BookingAccommodation[];
   onSent: () => void;
@@ -170,10 +171,24 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const { data: hotelData } = useQuery({
     queryKey: ["hotel_pricing_mode_composer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, room_card_template, default_template_id").limit(1).single();
+      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, default_template_id").limit(1).single();
       if (error) throw error;
-      return data as { id: string; pricing_mode: string; room_card_template: string | null; default_template_id: string | null };
+      return data as { id: string; pricing_mode: string; default_template_id: string | null };
     },
+  });
+
+  // Fetch room card templates per language
+  const { data: roomCardTemplates = [] } = useQuery({
+    queryKey: ["hotel_room_card_templates_composer", hotelData?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_room_card_templates" as any)
+        .select("language_code, template")
+        .eq("hotel_id", hotelData!.id);
+      if (error) throw error;
+      return (data as unknown as { language_code: string; template: string }[]);
+    },
+    enabled: !!hotelData?.id,
   });
   const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
 
@@ -361,6 +376,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   // Generate rooms HTML for template
   const roomsPreviewHtml = useMemo(() => {
     if (!rooms || selectedRooms.length === 0) return "";
+    // Pick room card template for booking language, fallback to first available or default
+    const langTemplate = roomCardTemplates.find(t => t.language_code === booking.language);
+    const cardTemplate = langTemplate?.template || roomCardTemplates[0]?.template || null;
     return selectedRooms.map(sr => {
       const roomData = rooms.find(r => r.id === sr.roomId);
       if (!roomData) return "";
@@ -368,9 +386,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       const manual = parseFloat(sr.manualPrice);
       const price = !isNaN(manual) && manual > 0 ? manual.toFixed(2) : calc ? calc.total.toFixed(2) : null;
       const nights = calc ? calc.nights : null;
-      return generateRoomPreviewHtml(roomData, price, nights, hotelData?.room_card_template);
+      return generateRoomPreviewHtml(roomData, price, nights, cardTemplate);
     }).join("");
-  }, [rooms, selectedRooms, roomCalculations, hotelData?.room_card_template]);
+  }, [rooms, selectedRooms, roomCalculations, roomCardTemplates, booking.language]);
 
 
 
