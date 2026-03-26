@@ -261,7 +261,7 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Codice MJML — {hl.language_code.toUpperCase()}</Label>
                           <textarea
-                            className="w-full min-h-[300px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                            className="w-full min-h-[500px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
                             value={state.mjml_source}
                             onChange={(e) => {
                               setTemplates(prev => ({
