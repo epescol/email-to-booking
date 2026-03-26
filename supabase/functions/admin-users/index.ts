@@ -170,33 +170,25 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
 
-      // Resolve hotel by display_name
-      let hotel_id: string | null = null;
-      if (display_name) {
-        const { data: existing } = await supabaseAdmin
-          .from("hotels")
-          .select("id")
-          .eq("name", display_name)
+      // Rename existing hotel instead of creating a new one
+      if (display_name && role !== "admin") {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("hotel_id")
+          .eq("user_id", user_id)
           .maybeSingle();
-        if (existing) {
-          hotel_id = existing.id;
-        } else {
-          const { data: newHotel, error: hotelErr } = await supabaseAdmin
+
+        if (profile?.hotel_id) {
+          await supabaseAdmin
             .from("hotels")
-            .insert({ name: display_name })
-            .select("id")
-            .single();
-          if (hotelErr) throw hotelErr;
-          hotel_id = newHotel.id;
+            .update({ name: display_name })
+            .eq("id", profile.hotel_id);
         }
       }
 
       // Update profile
       const profileUpdate: Record<string, unknown> = {};
-      if (display_name) {
-        profileUpdate.display_name = display_name;
-        profileUpdate.hotel_id = hotel_id;
-      }
+      if (display_name) profileUpdate.display_name = display_name;
       if (email) profileUpdate.email = email;
 
       if (Object.keys(profileUpdate).length > 0) {
