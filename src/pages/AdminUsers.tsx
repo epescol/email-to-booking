@@ -316,7 +316,7 @@ export default function AdminUsers() {
             <Button variant="outline" onClick={closeDialog}>Annulla</Button>
             <Button
               onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || !form.email || (!editingUser && !form.password) || selectedLanguages.length === 0}
+              disabled={saveMutation.isPending || !form.email || (!editingUser && !form.password) || (form.role !== "admin" && selectedLanguages.length === 0)}
             >
               {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingUser ? "Salva" : "Crea"}
