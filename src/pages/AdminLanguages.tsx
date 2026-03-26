@@ -77,7 +77,7 @@ export default function AdminLanguages() {
           }
         }
 
-        // If this language is a default for any hotel, switch default to IT
+        // If this language is a default for any hotel, switch default to another language
         const { data: defaultHotels } = await supabase
           .from("hotel_languages" as any)
           .select("hotel_id")
@@ -86,11 +86,24 @@ export default function AdminLanguages() {
 
         if (defaultHotels && defaultHotels.length > 0) {
           for (const dh of defaultHotels as any[]) {
-            await supabase
+            // Get remaining languages for this hotel (excluding the one being deleted)
+            const { data: remainingLangs } = await supabase
               .from("hotel_languages" as any)
-              .update({ is_default: true })
+              .select("language_code")
               .eq("hotel_id", dh.hotel_id)
-              .eq("language_code", "it");
+              .neq("language_code", code);
+
+            if (remainingLangs && remainingLangs.length > 0) {
+              // Prefer IT if associated, otherwise pick the first available
+              const hasIt = (remainingLangs as any[]).some((l: any) => l.language_code === "it");
+              const fallbackCode = hasIt ? "it" : (remainingLangs as any[])[0].language_code;
+
+              await supabase
+                .from("hotel_languages" as any)
+                .update({ is_default: true })
+                .eq("hotel_id", dh.hotel_id)
+                .eq("language_code", fallbackCode);
+            }
           }
         }
       }
