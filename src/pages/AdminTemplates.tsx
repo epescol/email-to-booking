@@ -89,9 +89,24 @@ export default function AdminTemplates() {
   const { data: hotels = [] } = useQuery({
     queryKey: ["admin-hotels-templates"],
     queryFn: async () => {
+      // Get admin user_ids to exclude their hotels
+      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+      const adminUserIds = (adminRoles || []).map(r => r.user_id);
+
       const { data, error } = await supabase.from("hotels").select("id, name, default_template_id").order("name");
       if (error) throw error;
-      return data;
+
+      if (adminUserIds.length === 0) return data;
+
+      // Get hotel_ids linked to admin profiles
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("hotel_id")
+        .in("user_id", adminUserIds)
+        .not("hotel_id", "is", null);
+      const adminHotelIds = new Set((adminProfiles || []).map(p => p.hotel_id));
+
+      return data.filter(h => !adminHotelIds.has(h.id));
     },
     enabled: isAdmin,
   });
