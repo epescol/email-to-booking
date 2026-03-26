@@ -188,10 +188,7 @@ Deno.serve(async (req) => {
 
       // Update profile
       const profileUpdate: Record<string, unknown> = {};
-      if (display_name) {
-        profileUpdate.display_name = display_name;
-        profileUpdate.hotel_id = hotel_id;
-      }
+      if (display_name) profileUpdate.display_name = display_name;
       if (email) profileUpdate.email = email;
 
       if (Object.keys(profileUpdate).length > 0) {
