@@ -55,12 +55,53 @@ export default function AdminLanguages() {
 
   const deleteMutation = useMutation({
     mutationFn: async (code: string) => {
+      if (code.toLowerCase() === "it") {
+        throw new Error("La lingua Italiano (IT) non può essere eliminata.");
+      }
+
+      // Check if any hotel has this as its ONLY language
+      const { data: hotelsWithLang } = await supabase
+        .from("hotel_languages" as any)
+        .select("hotel_id, language_code")
+        .eq("language_code", code);
+
+      if (hotelsWithLang && hotelsWithLang.length > 0) {
+        const hotelIds = [...new Set((hotelsWithLang as any[]).map((h: any) => h.hotel_id))];
+        for (const hid of hotelIds) {
+          const { data: allLangs } = await supabase
+            .from("hotel_languages" as any)
+            .select("language_code")
+            .eq("hotel_id", hid);
+          if (allLangs && allLangs.length <= 1) {
+            throw new Error("Impossibile eliminare: questa lingua è l'unica associata a uno o più hotel.");
+          }
+        }
+
+        // If this language is a default for any hotel, switch default to IT
+        const { data: defaultHotels } = await supabase
+          .from("hotel_languages" as any)
+          .select("hotel_id")
+          .eq("language_code", code)
+          .eq("is_default", true);
+
+        if (defaultHotels && defaultHotels.length > 0) {
+          for (const dh of defaultHotels as any[]) {
+            await supabase
+              .from("hotel_languages" as any)
+              .update({ is_default: true })
+              .eq("hotel_id", dh.hotel_id)
+              .eq("language_code", "it");
+          }
+        }
+      }
+
       const { error } = await supabase.from("languages" as any).delete().eq("code", code);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Lingua eliminata");
       queryClient.invalidateQueries({ queryKey: ["languages"] });
+      queryClient.invalidateQueries({ queryKey: ["hotel_languages"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -107,9 +148,13 @@ export default function AdminLanguages() {
                     <TableCell className="font-mono uppercase">{l.code}</TableCell>
                     <TableCell>{l.name}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => confirm.requestDelete(l.code)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {l.code.toLowerCase() !== "it" ? (
+                        <Button variant="ghost" size="icon" onClick={() => confirm.requestDelete(l.code)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Protetta</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
