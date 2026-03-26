@@ -215,14 +215,49 @@ Deno.serve(async (req) => {
 
     if (action === "delete") {
       const { user_id } = payload;
-      
+
+      // Get the hotel_id before deleting
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("hotel_id")
+        .eq("user_id", user_id)
+        .maybeSingle();
+      const hotelId = profile?.hotel_id;
+
+      // Unassign booking requests
       await supabaseAdmin
         .from("booking_requests")
         .update({ assigned_to: null })
         .eq("assigned_to", user_id);
 
+      // Delete auth user (cascades to profiles, user_roles)
       const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id);
       if (error) throw error;
+
+      // Delete hotel and all related data
+      if (hotelId) {
+        // Delete in correct order (children first)
+        await supabaseAdmin.from("room_prices").delete().in("room_id",
+          (await supabaseAdmin.from("rooms").select("id").eq("hotel_id", hotelId)).data?.map(r => r.id) || []
+        );
+        await supabaseAdmin.from("room_translations").delete().in("room_id",
+          (await supabaseAdmin.from("rooms").select("id").eq("hotel_id", hotelId)).data?.map(r => r.id) || []
+        );
+        const { data: bookings } = await supabaseAdmin.from("booking_requests").select("id").eq("hotel_id", hotelId);
+        const bookingIds = (bookings || []).map(b => b.id);
+        if (bookingIds.length > 0) {
+          await supabaseAdmin.from("booking_accommodations").delete().in("request_id", bookingIds);
+          await supabaseAdmin.from("booking_messages").delete().in("request_id", bookingIds);
+        }
+        await supabaseAdmin.from("booking_requests").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("rooms").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("offer_templates").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("treatments").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("price_periods").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("hotel_languages").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("hotel_email_settings").delete().eq("hotel_id", hotelId);
+        await supabaseAdmin.from("hotels").delete().eq("id", hotelId);
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
