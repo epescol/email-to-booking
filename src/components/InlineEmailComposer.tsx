@@ -171,10 +171,24 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const { data: hotelData } = useQuery({
     queryKey: ["hotel_pricing_mode_composer"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, room_card_template, default_template_id").limit(1).single();
+      const { data, error } = await supabase.from("hotels").select("id, pricing_mode, default_template_id").limit(1).single();
       if (error) throw error;
-      return data as { id: string; pricing_mode: string; room_card_template: string | null; default_template_id: string | null };
+      return data as { id: string; pricing_mode: string; default_template_id: string | null };
     },
+  });
+
+  // Fetch room card templates per language
+  const { data: roomCardTemplates = [] } = useQuery({
+    queryKey: ["hotel_room_card_templates_composer", hotelData?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_room_card_templates" as any)
+        .select("language_code, template")
+        .eq("hotel_id", hotelData!.id);
+      if (error) throw error;
+      return data as { language_code: string; template: string }[];
+    },
+    enabled: !!hotelData?.id,
   });
   const pricingMode = (hotelData?.pricing_mode as string) || "per_room";
 
