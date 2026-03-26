@@ -279,15 +279,15 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Anteprima HTML</Label>
-                          <div className="min-h-[300px] border rounded-md bg-white overflow-auto">
+                          <div className="min-h-[500px] border rounded-md bg-white overflow-auto">
                             {mjmlPreviews[hl.language_code] ? (
                               <iframe
                                 srcDoc={mjmlPreviews[hl.language_code]}
-                                className="w-full min-h-[300px] border-0"
+                                className="w-full min-h-[500px] border-0"
                                 title="MJML Preview"
                               />
                             ) : (
-                              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                              <div className="flex items-center justify-center h-[500px] text-muted-foreground text-sm">
                                 Scrivi codice MJML per vedere l'anteprima
                               </div>
                             )}
