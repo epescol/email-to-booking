@@ -1,14 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type, Star, Globe, Copy } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Mail, Pencil, Trash2, Eye, ArrowLeft, Code, Type, Star, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +33,21 @@ interface OfferTemplate {
   updated_at: string;
 }
 
+interface TemplateVariant {
+  language: string;
+  subject_template: string;
+  body_template: string;
+  mjml_source: string;
+  editorMode: "wysiwyg" | "mjml";
+}
+
+interface TemplateGroup {
+  groupId: string;
+  name: string;
+  templates: OfferTemplate[];
+  languages: string[];
+}
+
 export default function AdminTemplates() {
   const { user } = useAuth();
   const { data: roles } = useUserRoles(user?.id);
@@ -40,30 +57,34 @@ export default function AdminTemplates() {
 
   const [selectedHotelId, setSelectedHotelId] = useState<string>("");
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", subject_template: "", body_template: "", mjml_source: "", language: "it" });
-  const [editorMode, setEditorMode] = useState<"wysiwyg" | "mjml">("wysiwyg");
-  const [mjmlPreview, setMjmlPreview] = useState("");
-  const [mjmlError, setMjmlError] = useState("");
-  const [filterLanguage, setFilterLanguage] = useState<string>("__all__");
+  const [templateName, setTemplateName] = useState("");
+  const [variants, setVariants] = useState<Record<string, TemplateVariant>>({});
+  const [activeTab, setActiveTab] = useState("");
+  const [mjmlPreviews, setMjmlPreviews] = useState<Record<string, string>>({});
+  const [mjmlErrors, setMjmlErrors] = useState<Record<string, string>>({});
   const confirm = useConfirmDelete();
 
   const { data: hotelLanguages = [] } = useHotelLanguages(selectedHotelId || undefined);
 
-  const compileMjml = useCallback((source: string) => {
-    if (!source.trim()) { setMjmlPreview(""); setMjmlError(""); return; }
+  const isEditorOpen = isCreating || !!editingGroupId;
+
+  const compileMjml = useCallback((source: string, lang: string) => {
+    if (!source.trim()) {
+      setMjmlPreviews(p => ({ ...p, [lang]: "" }));
+      setMjmlErrors(e => ({ ...e, [lang]: "" }));
+      return;
+    }
     try {
       const result = mjml2html(source, { validationLevel: "soft" });
-      setMjmlPreview(result.html);
-      setMjmlError("");
+      setMjmlPreviews(p => ({ ...p, [lang]: result.html }));
+      setMjmlErrors(e => ({ ...e, [lang]: "" }));
     } catch (e: any) {
-      setMjmlError(e.message || "Errore di compilazione MJML");
-      setMjmlPreview("");
+      setMjmlErrors(err => ({ ...err, [lang]: e.message || "Errore MJML" }));
+      setMjmlPreviews(p => ({ ...p, [lang]: "" }));
     }
   }, []);
-
-  const isEditorOpen = isCreating || !!editingId;
 
   const { data: hotels = [] } = useQuery({
     queryKey: ["admin-hotels-templates"],
@@ -99,45 +120,90 @@ export default function AdminTemplates() {
     enabled: !!selectedHotelId,
   });
 
+  // Group templates by template_group_id
+  const templateGroups = useMemo((): TemplateGroup[] => {
+    if (!templates) return [];
+    const groups: Record<string, TemplateGroup> = {};
+    for (const t of templates) {
+      const gid = t.template_group_id || t.id;
+      if (!groups[gid]) {
+        groups[gid] = { groupId: gid, name: t.name, templates: [], languages: [] };
+      }
+      groups[gid].templates.push(t);
+      groups[gid].languages.push(t.language || "it");
+    }
+    // Use the name from the first template (strip language suffix if present)
+    for (const g of Object.values(groups)) {
+      // Use base name (remove trailing " (XX)" language suffix)
+      const baseName = g.templates[0].name.replace(/\s*\([A-Z]{2}\)\s*$/, "");
+      g.name = baseName;
+    }
+    return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
+  }, [templates]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedHotelId) throw new Error("Seleziona un hotel");
-      let bodyToSave = form.body_template;
-      if (editorMode === "mjml" && form.mjml_source.trim()) {
-        try {
-          const result = mjml2html(form.mjml_source, { validationLevel: "soft" });
-          bodyToSave = result.html;
-        } catch (e: any) {
-          throw new Error("Errore compilazione MJML: " + e.message);
+      if (!templateName.trim()) throw new Error("Inserisci un nome per il template");
+
+      const groupId = editingGroupId || crypto.randomUUID();
+
+      for (const [lang, variant] of Object.entries(variants)) {
+        // Skip empty variants
+        if (!variant.body_template.trim() && !variant.mjml_source.trim()) continue;
+
+        let bodyToSave = variant.body_template;
+        if (variant.editorMode === "mjml" && variant.mjml_source.trim()) {
+          try {
+            const result = mjml2html(variant.mjml_source, { validationLevel: "soft" });
+            bodyToSave = result.html;
+          } catch (e: any) {
+            throw new Error(`Errore MJML (${lang.toUpperCase()}): ${e.message}`);
+          }
         }
-      }
-      const payload = {
-        name: form.name,
-        subject_template: form.subject_template,
-        body_template: bodyToSave,
-        mjml_source: editorMode === "mjml" ? form.mjml_source : null,
-        language: form.language,
-      } as any;
-      if (editingId) {
-        const { error } = await supabase.from("offer_templates").update(payload).eq("id", editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("offer_templates").insert({ ...payload, hotel_id: selectedHotelId });
-        if (error) throw error;
+
+        // Find existing template for this group+language
+        const existing = templates?.find(
+          t => t.template_group_id === editingGroupId && (t.language || "it") === lang
+        );
+
+        const displayName = hotelLanguages.length > 1
+          ? `${templateName} (${lang.toUpperCase()})`
+          : templateName;
+
+        const payload = {
+          name: displayName,
+          subject_template: variant.subject_template,
+          body_template: bodyToSave || "<p></p>",
+          mjml_source: variant.editorMode === "mjml" ? variant.mjml_source : null,
+          language: lang,
+          template_group_id: groupId,
+        } as any;
+
+        if (existing) {
+          const { error } = await supabase.from("offer_templates").update(payload).eq("id", existing.id);
+          if (error) throw error;
+        } else if (bodyToSave.trim() || variant.mjml_source.trim()) {
+          const { error } = await supabase.from("offer_templates").insert({ ...payload, hotel_id: selectedHotelId });
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => {
-      toast.success(editingId ? "Template aggiornato" : "Template creato");
+      toast.success(editingGroupId ? "Template aggiornato" : "Template creato");
       queryClient.invalidateQueries({ queryKey: ["offer_templates", selectedHotelId] });
       closeEditor();
     },
     onError: (e) => toast.error(e.message),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("offer_templates").delete().eq("id", id);
-      if (error) throw error;
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const toDelete = templates?.filter(t => (t.template_group_id || t.id) === groupId) || [];
+      for (const t of toDelete) {
+        const { error } = await supabase.from("offer_templates").delete().eq("id", t.id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Template eliminato");
@@ -146,80 +212,61 @@ export default function AdminTemplates() {
     onError: (e) => toast.error(e.message),
   });
 
-  const duplicateForLanguage = async (template: OfferTemplate, targetLang: string) => {
-    const payload = {
-      name: `${template.name} (${targetLang.toUpperCase()})`,
-      subject_template: template.subject_template || "",
-      body_template: template.body_template,
-      mjml_source: template.mjml_source,
-      language: targetLang,
-      template_group_id: template.template_group_id,
-      hotel_id: selectedHotelId,
-    } as any;
-    const { error } = await supabase.from("offer_templates").insert(payload);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Variante ${targetLang.toUpperCase()} creata`);
-      queryClient.invalidateQueries({ queryKey: ["offer_templates", selectedHotelId] });
-    }
-  };
+  const getLangName = (code: string) => allLanguages.find(l => l.code === code)?.name || code.toUpperCase();
 
   const closeEditor = () => {
-    setEditingId(null);
+    setEditingGroupId(null);
     setIsCreating(false);
-    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "", language: "it" });
-    setEditorMode("wysiwyg");
-    setMjmlPreview("");
-    setMjmlError("");
+    setTemplateName("");
+    setVariants({});
+    setActiveTab("");
+    setMjmlPreviews({});
+    setMjmlErrors({});
   };
 
-  const openEdit = (t: OfferTemplate) => {
-    setEditingId(t.id);
-    setIsCreating(false);
-    setForm({
-      name: t.name,
-      subject_template: t.subject_template || "",
-      body_template: t.body_template,
-      mjml_source: t.mjml_source || "",
-      language: t.language || "it",
-    });
-    if (t.mjml_source) {
-      setEditorMode("mjml");
-      compileMjml(t.mjml_source);
-    } else {
-      setEditorMode("wysiwyg");
+  const initVariants = (existingTemplates?: OfferTemplate[]) => {
+    const langs = hotelLanguages.length > 0
+      ? hotelLanguages.map(hl => hl.language_code)
+      : ["it"];
+    const defaultLang = hotelLanguages.find(hl => hl.is_default)?.language_code || langs[0];
+
+    const newVariants: Record<string, TemplateVariant> = {};
+    for (const lang of langs) {
+      const existing = existingTemplates?.find(t => (t.language || "it") === lang);
+      newVariants[lang] = {
+        language: lang,
+        subject_template: existing?.subject_template || "",
+        body_template: existing?.body_template || "",
+        mjml_source: existing?.mjml_source || "",
+        editorMode: existing?.mjml_source ? "mjml" : "wysiwyg",
+      };
+      if (existing?.mjml_source) {
+        compileMjml(existing.mjml_source, lang);
+      }
     }
+    setVariants(newVariants);
+    setActiveTab(defaultLang);
   };
 
   const openCreate = () => {
-    setEditingId(null);
+    setEditingGroupId(null);
     setIsCreating(true);
-    const defaultLang = hotelLanguages.find(hl => hl.is_default)?.language_code || "it";
-    setForm({ name: "", subject_template: "", body_template: "", mjml_source: "", language: defaultLang });
-    setEditorMode("wysiwyg");
+    setTemplateName("");
+    initVariants();
   };
 
-  const getLangName = (code: string) => allLanguages.find(l => l.code === code)?.name || code.toUpperCase();
-
-  // Filter templates by language
-  const filteredTemplates = templates?.filter(t =>
-    filterLanguage === "__all__" ? true : (t.language || "it") === filterLanguage
-  );
-
-  // Group templates by template_group_id for showing missing variants
-  const getExistingLangs = (template: OfferTemplate) => {
-    if (!template.template_group_id || !templates) return [];
-    return templates
-      .filter(t => t.template_group_id === template.template_group_id)
-      .map(t => t.language || "it");
+  const openEdit = (group: TemplateGroup) => {
+    setEditingGroupId(group.groupId);
+    setIsCreating(false);
+    setTemplateName(group.name);
+    initVariants(group.templates);
   };
 
-  const getMissingLangs = (template: OfferTemplate) => {
-    const existing = getExistingLangs(template);
-    return hotelLanguages
-      .map(hl => hl.language_code)
-      .filter(code => !existing.includes(code));
+  const updateVariant = (lang: string, field: keyof TemplateVariant, value: string) => {
+    setVariants(prev => ({
+      ...prev,
+      [lang]: { ...prev[lang], [field]: value },
+    }));
   };
 
   if (!isAdmin) {
@@ -228,6 +275,8 @@ export default function AdminTemplates() {
 
   // Editor view
   if (isEditorOpen) {
+    const langs = Object.keys(variants);
+
     return (
       <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] animate-fade-in">
         <div className="flex items-center gap-3 shrink-0 pb-4">
@@ -236,7 +285,7 @@ export default function AdminTemplates() {
           </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight">
-              {editingId ? "Modifica Template" : "Nuovo Template"}
+              {editingGroupId ? "Modifica Template" : "Nuovo Template"}
             </h1>
             <p className="text-muted-foreground text-sm">
               {hotels.find(h => h.id === selectedHotelId)?.name}
@@ -244,92 +293,126 @@ export default function AdminTemplates() {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeEditor}>Annulla</Button>
-            <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>Salva Template</Button>
+            <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+              {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salva Template
+            </Button>
           </div>
         </div>
 
-        <form className="flex flex-col flex-1 min-h-0 gap-4" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-            <div className="space-y-2">
-              <Label>Nome Template</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Oggetto Email</Label>
-              <Input value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} placeholder="Offerta per il soggiorno dal {{check_in}} al {{check_out}}" />
-            </div>
-            <div className="space-y-2">
-              <Label>Lingua</Label>
-              <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotelLanguages.length > 0
-                    ? hotelLanguages.map(hl => (
-                        <SelectItem key={hl.language_code} value={hl.language_code}>
-                          {getLangName(hl.language_code)} {hl.is_default && "(predefinita)"}
-                        </SelectItem>
-                      ))
-                    : allLanguages.map(l => (
-                        <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>
-                      ))
-                  }
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="space-y-4 shrink-0">
+          <div className="max-w-md space-y-2">
+            <Label>Nome Template</Label>
+            <Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Es. Offerta Standard" required />
           </div>
+        </div>
 
-          <div className="flex items-center justify-between shrink-0">
-            <Label>Corpo Email</Label>
-            <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
-              <Button type="button" variant={editorMode === "wysiwyg" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => setEditorMode("wysiwyg")}>
-                <Type className="mr-1 h-3 w-3" />Visuale
-              </Button>
-              <Button type="button" variant={editorMode === "mjml" ? "default" : "ghost"} size="sm" className="h-7 text-xs px-3" onClick={() => { setEditorMode("mjml"); if (form.mjml_source) compileMjml(form.mjml_source); }}>
-                <Code className="mr-1 h-3 w-3" />MJML
-              </Button>
-            </div>
-          </div>
+        {/* Language tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 mt-4">
+          <TabsList className="shrink-0">
+            {langs.map(lang => (
+              <TabsTrigger key={lang} value={lang} className="gap-1.5">
+                <span className="font-mono text-xs uppercase">{lang}</span>
+                <span className="hidden sm:inline">{getLangName(lang)}</span>
+                {variants[lang]?.body_template?.trim() || variants[lang]?.mjml_source?.trim()
+                  ? <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-          <div className="flex-1 min-h-0">
-            {editorMode === "wysiwyg" ? (
-              <div className="h-full">
-                <WysiwygEditor content={form.body_template} onChange={(html) => setForm({ ...form, body_template: html })} placeholder="Scrivi il corpo del template..." />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-                <div className="flex flex-col min-h-0">
-                  <Label className="text-xs text-muted-foreground mb-1 shrink-0">Codice MJML</Label>
-                  <textarea
-                    className="flex-1 w-full font-mono text-xs p-3 rounded-md border border-input bg-background resize-none"
-                    value={form.mjml_source}
-                    onChange={(e) => { setForm({ ...form, mjml_source: e.target.value }); compileMjml(e.target.value); }}
-                    spellCheck={false}
-                    placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text>Ciao {{nome}}!</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
-                  />
-                  {mjmlError && <p className="text-xs text-destructive mt-1 shrink-0">{mjmlError}</p>}
-                </div>
-                <div className="flex flex-col min-h-0">
-                  <Label className="text-xs text-muted-foreground mb-1 shrink-0">Anteprima HTML</Label>
-                  <div className="flex-1 border rounded-md bg-white overflow-auto">
-                    {mjmlPreview ? (
-                      <iframe srcDoc={mjmlPreview} className="w-full h-full border-0" title="MJML Preview" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Scrivi codice MJML per vedere l'anteprima</div>
-                    )}
+          {langs.map(lang => {
+            const v = variants[lang];
+            if (!v) return null;
+
+            return (
+              <TabsContent key={lang} value={lang} className="flex-1 flex flex-col min-h-0 mt-3 data-[state=inactive]:hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 mb-4">
+                  <div className="space-y-2">
+                    <Label>Oggetto Email</Label>
+                    <Input
+                      value={v.subject_template}
+                      onChange={(e) => updateVariant(lang, "subject_template", e.target.value)}
+                      placeholder="Offerta per il soggiorno dal {{check_in}} al {{check_out}}"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                      <Button
+                        type="button"
+                        variant={v.editorMode === "wysiwyg" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-3"
+                        onClick={() => updateVariant(lang, "editorMode", "wysiwyg")}
+                      >
+                        <Type className="mr-1 h-3 w-3" />Visuale
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={v.editorMode === "mjml" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-3"
+                        onClick={() => {
+                          updateVariant(lang, "editorMode", "mjml");
+                          if (v.mjml_source) compileMjml(v.mjml_source, lang);
+                        }}
+                      >
+                        <Code className="mr-1 h-3 w-3" />MJML
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
 
-          <div className="shrink-0 pb-2">
-            <p className="text-xs text-muted-foreground">
-              Variabili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}, {{email_body}}"} · <code className="bg-muted px-1 rounded">{"{{email_body}}"}</code> attiva un editor di testo libero nell'invio
-            </p>
-          </div>
-        </form>
+                <div className="flex-1 min-h-0">
+                  {v.editorMode === "wysiwyg" ? (
+                    <div className="h-full">
+                      <WysiwygEditor
+                        content={v.body_template}
+                        onChange={(html) => updateVariant(lang, "body_template", html)}
+                        placeholder="Scrivi il corpo del template..."
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                      <div className="flex flex-col min-h-0">
+                        <Label className="text-xs text-muted-foreground mb-1 shrink-0">Codice MJML</Label>
+                        <textarea
+                          className="flex-1 w-full font-mono text-xs p-3 rounded-md border border-input bg-background resize-none"
+                          value={v.mjml_source}
+                          onChange={(e) => {
+                            updateVariant(lang, "mjml_source", e.target.value);
+                            compileMjml(e.target.value, lang);
+                          }}
+                          spellCheck={false}
+                          placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-text>Ciao {{nome}}!</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
+                        />
+                        {mjmlErrors[lang] && <p className="text-xs text-destructive mt-1 shrink-0">{mjmlErrors[lang]}</p>}
+                      </div>
+                      <div className="flex flex-col min-h-0">
+                        <Label className="text-xs text-muted-foreground mb-1 shrink-0">Anteprima HTML</Label>
+                        <div className="flex-1 border rounded-md bg-white overflow-auto">
+                          {mjmlPreviews[lang] ? (
+                            <iframe srcDoc={mjmlPreviews[lang]} className="w-full h-full border-0" title="MJML Preview" />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                              Scrivi codice MJML per vedere l'anteprima
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="shrink-0 pt-2 pb-1">
+                  <p className="text-xs text-muted-foreground">
+                    Variabili: {"{{nome}}, {{cognome}}, {{check_in}}, {{check_out}}, {{prezzo}}, {{camere}}, {{email_body}}"} · <code className="bg-muted px-1 rounded">{"{{email_body}}"}</code> attiva un editor di testo libero nell'invio
+                  </p>
+                </div>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
       </div>
     );
   }
@@ -347,7 +430,7 @@ export default function AdminTemplates() {
       {/* Hotel selector */}
       <div className="space-y-2 max-w-sm">
         <Label>Seleziona Hotel</Label>
-        <Select value={selectedHotelId} onValueChange={(v) => { setSelectedHotelId(v); setFilterLanguage("__all__"); }}>
+        <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
           <SelectTrigger>
             <SelectValue placeholder="Scegli un hotel..." />
           </SelectTrigger>
@@ -367,26 +450,7 @@ export default function AdminTemplates() {
           {/* Email Templates */}
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Template Email</h2>
-            <div className="flex items-center gap-2">
-              {/* Language filter */}
-              {hotelLanguages.length > 1 && (
-                <Select value={filterLanguage} onValueChange={setFilterLanguage}>
-                  <SelectTrigger className="w-[160px] h-9">
-                    <Globe className="h-3 w-3 mr-1" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Tutte le lingue</SelectItem>
-                    {hotelLanguages.map(hl => (
-                      <SelectItem key={hl.language_code} value={hl.language_code}>
-                        {getLangName(hl.language_code)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
-            </div>
+            <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nuovo Template</Button>
           </div>
 
           {/* Default template selector */}
@@ -404,9 +468,9 @@ export default function AdminTemplates() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Nessuno</SelectItem>
-                    {templates.map(t => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name} {t.language && t.language !== "it" ? `(${t.language.toUpperCase()})` : ""}
+                    {templateGroups.map(g => (
+                      <SelectItem key={g.groupId} value={g.templates[0].id}>
+                        {g.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -415,70 +479,75 @@ export default function AdminTemplates() {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="text-center text-muted-foreground p-8">Caricamento...</div>
-          ) : !filteredTemplates?.length ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Mail className="h-12 w-12 text-muted-foreground/40 mb-4" />
-                <p className="text-muted-foreground">
-                  {filterLanguage !== "__all__"
-                    ? `Nessun template in ${getLangName(filterLanguage)}`
-                    : "Nessun template creato per questo hotel"
-                  }
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTemplates.map((t) => {
-                const missingLangs = getMissingLangs(t);
-                return (
-                  <Card key={t.id} className="group">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {t.name}
-                          <Badge variant="outline" className="text-xs font-mono uppercase">
-                            {(t.language || "it").toUpperCase()}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Duplicate for missing languages */}
-                          {missingLangs.length > 0 && missingLangs.map(lang => (
-                            <Button
-                              key={lang}
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-xs gap-1"
-                              onClick={() => duplicateForLanguage(t, lang)}
-                              title={`Crea variante ${getLangName(lang)}`}
-                            >
-                              <Copy className="h-3 w-3" />
-                              {lang.toUpperCase()}
-                            </Button>
-                          ))}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewId(t.id)}>
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)}>
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(t.id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {t.subject_template && <p className="text-sm font-medium text-muted-foreground mb-1">📧 {t.subject_template}</p>}
-                      <div className="text-sm text-muted-foreground line-clamp-3 [&_*]:text-sm [&_*]:text-muted-foreground" dangerouslySetInnerHTML={{ __html: t.body_template.substring(0, 300) }} />
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : templateGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Mail className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                  <p className="text-muted-foreground">Nessun template creato per questo hotel</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Lingue</TableHead>
+                      <TableHead>Oggetto</TableHead>
+                      <TableHead className="w-[100px]">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {templateGroups.map((group) => {
+                      const firstTemplate = group.templates[0];
+                      const missingLangs = hotelLanguages
+                        .map(hl => hl.language_code)
+                        .filter(code => !group.languages.includes(code));
+
+                      return (
+                        <TableRow key={group.groupId}>
+                          <TableCell className="font-medium">{group.name}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              {group.languages.map(lang => (
+                                <Badge key={lang} variant="outline" className="text-xs font-mono uppercase">
+                                  {lang}
+                                </Badge>
+                              ))}
+                              {missingLangs.map(lang => (
+                                <Badge key={lang} variant="secondary" className="text-xs font-mono uppercase opacity-40">
+                                  {lang}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm truncate max-w-[200px]">
+                            {firstTemplate.subject_template || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => setPreviewId(firstTemplate.id)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(group)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => confirm.requestDelete(group.groupId)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
           {templates && (
             <Dialog open={!!previewId} onOpenChange={(open) => { if (!open) setPreviewId(null); }}>
@@ -495,9 +564,9 @@ export default function AdminTemplates() {
           <ConfirmDelete
             open={confirm.isOpen}
             onOpenChange={(open) => !open && confirm.cancelDelete()}
-            onConfirm={() => { if (confirm.deleteId) deleteMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
+            onConfirm={() => { if (confirm.deleteId) deleteGroupMutation.mutate(confirm.deleteId); confirm.cancelDelete(); }}
             title="Eliminare template?"
-            description="Il template verrà eliminato definitivamente. Questa azione non può essere annullata."
+            description="Il template e tutte le sue varianti linguistiche verranno eliminati definitivamente."
           />
         </>
       )}
