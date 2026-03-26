@@ -186,7 +186,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
         .select("language_code, template")
         .eq("hotel_id", hotelData!.id);
       if (error) throw error;
-      return data as { language_code: string; template: string }[];
+      return (data as unknown as { language_code: string; template: string }[]);
     },
     enabled: !!hotelData?.id,
   });
