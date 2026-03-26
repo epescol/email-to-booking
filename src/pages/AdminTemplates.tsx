@@ -89,24 +89,26 @@ export default function AdminTemplates() {
   const { data: hotels = [] } = useQuery({
     queryKey: ["admin-hotels-templates"],
     queryFn: async () => {
-      // Get admin user_ids to exclude their hotels
-      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-      const adminUserIds = (adminRoles || []).map(r => r.user_id);
+      // Get user (non-admin) user_ids
+      const { data: userRoles } = await supabase.from("user_roles").select("user_id").eq("role", "user");
+      const userIds = (userRoles || []).map(r => r.user_id);
+
+      if (userIds.length === 0) return [];
+
+      // Get hotel_ids linked to non-admin profiles
+      const { data: userProfiles } = await supabase
+        .from("profiles")
+        .select("hotel_id")
+        .in("user_id", userIds)
+        .not("hotel_id", "is", null);
+      const userHotelIds = new Set((userProfiles || []).map(p => p.hotel_id));
+
+      if (userHotelIds.size === 0) return [];
 
       const { data, error } = await supabase.from("hotels").select("id, name, default_template_id").order("name");
       if (error) throw error;
 
-      if (adminUserIds.length === 0) return data;
-
-      // Get hotel_ids linked to admin profiles
-      const { data: adminProfiles } = await supabase
-        .from("profiles")
-        .select("hotel_id")
-        .in("user_id", adminUserIds)
-        .not("hotel_id", "is", null);
-      const adminHotelIds = new Set((adminProfiles || []).map(p => p.hotel_id));
-
-      return data.filter(h => !adminHotelIds.has(h.id));
+      return data.filter(h => userHotelIds.has(h.id));
     },
     enabled: isAdmin,
   });
