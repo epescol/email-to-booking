@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LayoutTemplate, RotateCcw, Eye } from "lucide-react";
+import { LayoutTemplate, RotateCcw, Eye, Code, Type } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useHotelLanguages } from "@/hooks/useLanguages";
+import mjml2html from "mjml-browser";
 
 const DEFAULT_ROOM_CARD_TEMPLATE = `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
   {{#foto}}<tr><td colspan="2"><img src="{{foto}}" alt="{{nome_camera}}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px 12px 0 0;display:block;" /></td></tr>{{/foto}}
@@ -54,15 +55,24 @@ interface RoomCardTemplateRecord {
   hotel_id: string;
   language_code: string;
   template: string;
+  mjml_source?: string | null;
+}
+
+interface TemplateState {
+  template: string;
+  mjml_source: string;
+  editorMode: "html" | "mjml";
 }
 
 export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }) {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const queryClient = useQueryClient();
-  const [templates, setTemplates] = useState<Record<string, string>>({});
+  const [templates, setTemplates] = useState<Record<string, TemplateState>>({});
   const [activeTab, setActiveTab] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [mjmlPreviews, setMjmlPreviews] = useState<Record<string, string>>({});
+  const [mjmlErrors, setMjmlErrors] = useState<Record<string, string>>({});
 
   const effectiveHotelId = hotelId || profile?.hotel_id;
 
@@ -81,13 +91,35 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
     enabled: !!effectiveHotelId,
   });
 
-  // Initialize templates from saved data or defaults
+  const compileMjml = useCallback((source: string, lang: string) => {
+    if (!source.trim()) {
+      setMjmlPreviews(p => ({ ...p, [lang]: "" }));
+      setMjmlErrors(e => ({ ...e, [lang]: "" }));
+      return;
+    }
+    try {
+      const result = mjml2html(source, { validationLevel: "soft" });
+      setMjmlPreviews(p => ({ ...p, [lang]: result.html }));
+      setMjmlErrors(e => ({ ...e, [lang]: "" }));
+    } catch (e: any) {
+      setMjmlErrors(err => ({ ...err, [lang]: e.message || "Errore MJML" }));
+      setMjmlPreviews(p => ({ ...p, [lang]: "" }));
+    }
+  }, []);
+
   useEffect(() => {
     if (hotelLanguages.length === 0) return;
-    const map: Record<string, string> = {};
+    const map: Record<string, TemplateState> = {};
     for (const hl of hotelLanguages) {
       const saved = savedTemplates.find(t => t.language_code === hl.language_code);
-      map[hl.language_code] = saved?.template || DEFAULT_ROOM_CARD_TEMPLATE;
+      map[hl.language_code] = {
+        template: saved?.template || DEFAULT_ROOM_CARD_TEMPLATE,
+        mjml_source: saved?.mjml_source || "",
+        editorMode: saved?.mjml_source ? "mjml" : "html",
+      };
+      if (saved?.mjml_source) {
+        compileMjml(saved.mjml_source, hl.language_code);
+      }
     }
     setTemplates(map);
     if (!activeTab || !map[activeTab]) {
@@ -99,13 +131,27 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!effectiveHotelId) throw new Error("Hotel non trovato");
-      // Delete existing and re-insert
+
+      // For MJML mode, compile to HTML before saving
+      const rows = Object.entries(templates).map(([lang, state]) => {
+        let finalHtml = state.template;
+        if (state.editorMode === "mjml" && state.mjml_source.trim()) {
+          try {
+            const result = mjml2html(state.mjml_source, { validationLevel: "soft" });
+            finalHtml = result.html;
+          } catch (e: any) {
+            throw new Error(`Errore MJML (${lang.toUpperCase()}): ${e.message}`);
+          }
+        }
+        return {
+          hotel_id: effectiveHotelId,
+          language_code: lang,
+          template: finalHtml,
+          mjml_source: state.editorMode === "mjml" ? state.mjml_source : null,
+        };
+      });
+
       await supabase.from("hotel_room_card_templates" as any).delete().eq("hotel_id", effectiveHotelId);
-      const rows = Object.entries(templates).map(([lang, tpl]) => ({
-        hotel_id: effectiveHotelId,
-        language_code: lang,
-        template: tpl,
-      }));
       if (rows.length > 0) {
         const { error } = await supabase.from("hotel_room_card_templates" as any).insert(rows);
         if (error) throw error;
@@ -120,13 +166,21 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
 
   const resetToDefault = () => {
     if (activeTab) {
-      setTemplates(prev => ({ ...prev, [activeTab]: DEFAULT_ROOM_CARD_TEMPLATE }));
+      setTemplates(prev => ({
+        ...prev,
+        [activeTab]: { template: DEFAULT_ROOM_CARD_TEMPLATE, mjml_source: "", editorMode: "html" },
+      }));
+      setMjmlPreviews(p => ({ ...p, [activeTab]: "" }));
+      setMjmlErrors(e => ({ ...e, [activeTab]: "" }));
       toast.info("Template ripristinato al default");
     }
   };
 
-  const currentTemplate = templates[activeTab] || DEFAULT_ROOM_CARD_TEMPLATE;
-  const previewHtml = renderTemplate(currentTemplate, PREVIEW_DATA);
+  const currentState = templates[activeTab];
+  const currentTemplate = currentState?.template || DEFAULT_ROOM_CARD_TEMPLATE;
+  const previewHtml = currentState?.editorMode === "mjml" && mjmlPreviews[activeTab]
+    ? renderTemplate(mjmlPreviews[activeTab], PREVIEW_DATA)
+    : renderTemplate(currentTemplate, PREVIEW_DATA);
 
   return (
     <>
@@ -142,27 +196,108 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
         <CardContent className="space-y-4">
           {hotelLanguages.length > 0 ? (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                {hotelLanguages.map(hl => (
-                  <TabsTrigger key={hl.language_code} value={hl.language_code}>
-                    {hl.language_code.toUpperCase()}
-                    {hl.is_default && " ★"}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {hotelLanguages.map(hl => (
-                <TabsContent key={hl.language_code} value={hl.language_code}>
-                  <div className="space-y-2">
-                    <Label>Codice HTML — {hl.language_code.toUpperCase()}</Label>
-                    <textarea
-                      className="w-full min-h-[200px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
-                      value={templates[hl.language_code] || DEFAULT_ROOM_CARD_TEMPLATE}
-                      onChange={(e) => setTemplates(prev => ({ ...prev, [hl.language_code]: e.target.value }))}
-                      spellCheck={false}
-                    />
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <TabsList>
+                  {hotelLanguages.map(hl => (
+                    <TabsTrigger key={hl.language_code} value={hl.language_code}>
+                      {hl.language_code.toUpperCase()}
+                      {hl.is_default && " ★"}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {currentState && (
+                  <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                    <Button
+                      type="button"
+                      variant={currentState.editorMode === "html" ? "default" : "ghost"}
+                      size="sm"
+                      className="h-7 text-xs px-3"
+                      onClick={() => setTemplates(prev => ({
+                        ...prev,
+                        [activeTab]: { ...prev[activeTab], editorMode: "html" },
+                      }))}
+                    >
+                      <Type className="mr-1 h-3 w-3" />HTML
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={currentState.editorMode === "mjml" ? "default" : "ghost"}
+                      size="sm"
+                      className="h-7 text-xs px-3"
+                      onClick={() => {
+                        setTemplates(prev => ({
+                          ...prev,
+                          [activeTab]: { ...prev[activeTab], editorMode: "mjml" },
+                        }));
+                        if (currentState.mjml_source) compileMjml(currentState.mjml_source, activeTab);
+                      }}
+                    >
+                      <Code className="mr-1 h-3 w-3" />MJML
+                    </Button>
                   </div>
-                </TabsContent>
-              ))}
+                )}
+              </div>
+              {hotelLanguages.map(hl => {
+                const state = templates[hl.language_code];
+                if (!state) return null;
+
+                return (
+                  <TabsContent key={hl.language_code} value={hl.language_code}>
+                    {state.editorMode === "html" ? (
+                      <div className="space-y-2">
+                        <Label>Codice HTML — {hl.language_code.toUpperCase()}</Label>
+                        <textarea
+                          className="w-full min-h-[200px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                          value={state.template}
+                          onChange={(e) => setTemplates(prev => ({
+                            ...prev,
+                            [hl.language_code]: { ...prev[hl.language_code], template: e.target.value },
+                          }))}
+                          spellCheck={false}
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Codice MJML — {hl.language_code.toUpperCase()}</Label>
+                          <textarea
+                            className="w-full min-h-[300px] font-mono text-xs p-3 rounded-md border border-input bg-background resize-y"
+                            value={state.mjml_source}
+                            onChange={(e) => {
+                              setTemplates(prev => ({
+                                ...prev,
+                                [hl.language_code]: { ...prev[hl.language_code], mjml_source: e.target.value },
+                              }));
+                              compileMjml(e.target.value, hl.language_code);
+                            }}
+                            spellCheck={false}
+                            placeholder={`<mjml>\n  <mj-body>\n    <mj-section>\n      <mj-column>\n        <mj-image src="{{foto}}" />\n        <mj-text>{{nome_camera}}</mj-text>\n      </mj-column>\n    </mj-section>\n  </mj-body>\n</mjml>`}
+                          />
+                          {mjmlErrors[hl.language_code] && (
+                            <p className="text-xs text-destructive">{mjmlErrors[hl.language_code]}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Anteprima HTML</Label>
+                          <div className="min-h-[300px] border rounded-md bg-white overflow-auto">
+                            {mjmlPreviews[hl.language_code] ? (
+                              <iframe
+                                srcDoc={mjmlPreviews[hl.language_code]}
+                                className="w-full min-h-[300px] border-0"
+                                title="MJML Preview"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                                Scrivi codice MJML per vedere l'anteprima
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                );
+              })}
             </Tabs>
           ) : (
             <p className="text-sm text-muted-foreground">Nessuna lingua associata a questo hotel.</p>

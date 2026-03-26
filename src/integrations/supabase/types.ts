@@ -308,18 +308,21 @@ export type Database = {
           hotel_id: string
           id: string
           language_code: string
+          mjml_source: string | null
           template: string
         }
         Insert: {
           hotel_id: string
           id?: string
           language_code: string
+          mjml_source?: string | null
           template: string
         }
         Update: {
           hotel_id?: string
           id?: string
           language_code?: string
+          mjml_source?: string | null
           template?: string
         }
         Relationships: [
