@@ -376,6 +376,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   // Generate rooms HTML for template
   const roomsPreviewHtml = useMemo(() => {
     if (!rooms || selectedRooms.length === 0) return "";
+    // Pick room card template for booking language, fallback to first available or default
+    const langTemplate = roomCardTemplates.find(t => t.language_code === booking.language);
+    const cardTemplate = langTemplate?.template || roomCardTemplates[0]?.template || null;
     return selectedRooms.map(sr => {
       const roomData = rooms.find(r => r.id === sr.roomId);
       if (!roomData) return "";
@@ -383,9 +386,9 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       const manual = parseFloat(sr.manualPrice);
       const price = !isNaN(manual) && manual > 0 ? manual.toFixed(2) : calc ? calc.total.toFixed(2) : null;
       const nights = calc ? calc.nights : null;
-      return generateRoomPreviewHtml(roomData, price, nights, hotelData?.room_card_template);
+      return generateRoomPreviewHtml(roomData, price, nights, cardTemplate);
     }).join("");
-  }, [rooms, selectedRooms, roomCalculations, hotelData?.room_card_template]);
+  }, [rooms, selectedRooms, roomCalculations, roomCardTemplates, booking.language]);
 
 
 
