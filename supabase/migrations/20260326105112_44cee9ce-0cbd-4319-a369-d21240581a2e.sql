@@ -1,0 +1,1 @@
+ALTER TABLE public.hotel_room_card_templates ADD COLUMN mjml_source text;
