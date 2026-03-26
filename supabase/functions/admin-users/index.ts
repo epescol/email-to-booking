@@ -84,25 +84,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create or find hotel using display_name
+      // Always create a new hotel for each new user (never match by name)
       let hotel_id: string | null = null;
       if (display_name) {
-        const { data: existing } = await supabaseAdmin
+        const { data: newHotel, error: hotelErr } = await supabaseAdmin
           .from("hotels")
+          .insert({ name: display_name })
           .select("id")
-          .eq("name", display_name)
-          .maybeSingle();
-        if (existing) {
-          hotel_id = existing.id;
-        } else {
-          const { data: newHotel, error: hotelErr } = await supabaseAdmin
-            .from("hotels")
-            .insert({ name: display_name })
-            .select("id")
-            .single();
-          if (hotelErr) throw hotelErr;
-          hotel_id = newHotel.id;
-        }
+          .single();
+        if (hotelErr) throw hotelErr;
+        hotel_id = newHotel.id;
       }
 
       // Create auth user
