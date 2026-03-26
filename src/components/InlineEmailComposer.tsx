@@ -33,6 +33,7 @@ interface InlineEmailComposerProps {
     email: string | null;
     check_in: string | null;
     check_out: string | null;
+    language: string | null;
   };
   accommodations?: BookingAccommodation[];
   onSent: () => void;
