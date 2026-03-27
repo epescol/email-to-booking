@@ -41,7 +41,7 @@ export default function TreatmentsManager() {
   const confirm = useConfirmDelete();
   const addTreatment = useMutation({
     mutationFn: async () => {
-      if (!profile?.hotel_id || !newName.trim()) throw new Error("Nome richiesto");
+      if (!profile?.hotel_id || !newName.trim() || !newCode.trim()) throw new Error("Nome e codice richiesti");
       const maxSort = treatments?.length ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
       const { error } = await supabase.from("treatments").insert({
         hotel_id: profile.hotel_id,
