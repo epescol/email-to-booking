@@ -234,12 +234,12 @@ export default function Pricing() {
       {/* Treatments manager */}
       <TreatmentsManager />
 
-      {!periods?.length || !rooms?.length ? (
+      {!periods?.length || !rooms?.length || !enabledTreatments.length ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Euro className="h-12 w-12 text-muted-foreground/40 mb-4" />
             <p className="text-muted-foreground">
-              {!rooms?.length ? "Crea prima delle camere" : "Aggiungi un periodo per iniziare"}
+              {!rooms?.length ? "Crea prima delle camere" : !enabledTreatments.length ? "Abilita almeno un trattamento per inserire i prezzi" : "Aggiungi un periodo per iniziare"}
             </p>
           </CardContent>
         </Card>
