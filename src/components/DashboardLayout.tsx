@@ -14,6 +14,16 @@ export function DashboardLayout() {
           <main className="flex-1 overflow-auto p-6">
             <Outlet />
           </main>
+          <footer className="shrink-0 border-t py-3 px-6 text-center">
+            <a
+              href="https://interpromotion.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              powered by <span className="font-semibold">INTERPROMOTION</span>
+            </a>
+          </footer>
         </div>
       </div>
     </SidebarProvider>
