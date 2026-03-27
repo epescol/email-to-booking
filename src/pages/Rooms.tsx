@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, BedDouble, Pencil, Trash2 } from "lucide-react";
+import { Plus, BedDouble, Pencil, Trash2, Search, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -46,9 +47,9 @@ export default function Rooms() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
   const [translations, setTranslations] = useState<TranslationMap>({});
+  const [searchQuery, setSearchQuery] = useState("");
   const confirm = useConfirmDelete();
 
-  // Get language names for display
   const hotelLangs = hotelLanguages
     .map(hl => {
       const lang = allLanguages.find(l => l.code === hl.language_code);
@@ -67,7 +68,6 @@ export default function Rooms() {
     },
   });
 
-  // Fetch translations for a specific room
   const fetchTranslations = async (roomId: string): Promise<TranslationMap> => {
     const { data, error } = await supabase
       .from("room_translations" as any)
@@ -93,8 +93,6 @@ export default function Rooms() {
         if (error) throw error;
         roomId = newRoom.id;
       }
-
-      // Save translations
       if (roomId) {
         await supabase.from("room_translations" as any).delete().eq("room_id", roomId);
         const rows = Object.entries(translations)
@@ -147,15 +145,23 @@ export default function Rooms() {
     setDialogOpen(true);
   };
 
-  // Non-default languages for translation inputs
   const nonDefaultLangs = hotelLangs.filter(l => !l.is_default);
 
+  const filteredRooms = rooms?.filter((r) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return r.name.toLowerCase().includes(q) || (r.room_code || "").toLowerCase().includes(q);
+  });
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Camere</h1>
-          <p className="text-muted-foreground text-sm">Gestisci le camere del tuo hotel</p>
+          <p className="text-muted-foreground text-sm">
+            {rooms?.length || 0} {rooms?.length === 1 ? "camera" : "camere"} configurate
+          </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -179,8 +185,6 @@ export default function Rooms() {
                 </Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
               </div>
-
-              {/* Translation inputs for non-default languages */}
               {nonDefaultLangs.length > 0 && (
                 <div className="space-y-3 border rounded-md p-3 bg-muted/30">
                   <Label className="text-xs text-muted-foreground">Traduzioni nome camera</Label>
@@ -196,7 +200,6 @@ export default function Rooms() {
                   ))}
                 </div>
               )}
-
               <div className="space-y-2">
                 <Label>Codice Camera (per mapping XML email)</Label>
                 <Input value={form.room_code} onChange={(e) => setForm({ ...form, room_code: e.target.value })} placeholder="es. DBL-101, suite-panoramica" className="font-mono text-sm" />
@@ -242,47 +245,104 @@ export default function Rooms() {
         </Dialog>
       </div>
 
-      {isLoading ? (
-        <div className="text-center text-muted-foreground p-8">Caricamento...</div>
-      ) : !rooms?.length ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <BedDouble className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <p className="text-muted-foreground">Nessuna camera configurata</p>
-            <p className="text-sm text-muted-foreground">Aggiungi la prima camera per iniziare</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms.map((room) => (
-            <Card key={room.id} className="group">
-              {room.photo_url_1 && (
-                <div className="aspect-video overflow-hidden rounded-t-lg">
-                  <img src={room.photo_url_1} alt={room.name} className="w-full h-full object-cover" />
-                </div>
-              )}
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center justify-between">
-                  {room.name}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(room)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => confirm.requestDelete(room.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-1">
-                <p>Occupazione: {room.min_occupancy}-{room.max_occupancy} persone</p>
-                {room.room_code && <p className="font-mono text-xs">Codice: {room.room_code}</p>}
-                {room.beds && <p>Letti: {room.beds}</p>}
-              </CardContent>
-            </Card>
-          ))}
+      {/* Search */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Cerca camera o codice..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-9 text-sm"
+          />
         </div>
-      )}
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-12 text-center text-muted-foreground">
+              <div className="animate-pulse">Caricamento camere...</div>
+            </div>
+          ) : !filteredRooms?.length ? (
+            <div className="p-12 text-center">
+              <BedDouble className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">
+                {searchQuery ? "Nessun risultato trovato" : "Nessuna camera configurata"}
+              </p>
+              {!searchQuery && (
+                <p className="text-xs text-muted-foreground mt-1">Aggiungi la prima camera per iniziare</p>
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Codice</TableHead>
+                  <TableHead>Occupazione</TableHead>
+                  <TableHead>Letti</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRooms.map((room) => (
+                  <TableRow
+                    key={room.id}
+                    className="cursor-pointer group"
+                    onClick={() => openEdit(room)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {room.photo_url_1 ? (
+                          <img
+                            src={room.photo_url_1}
+                            alt={room.name}
+                            className="h-9 w-9 rounded object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="h-9 w-9 rounded bg-muted flex items-center justify-center shrink-0">
+                            <BedDouble className="h-4 w-4 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <span className="font-medium text-sm">{room.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {room.room_code ? (
+                        <span className="font-mono text-xs text-muted-foreground">{room.room_code}</span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {room.min_occupancy}–{room.max_occupancy} pax
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {room.beds || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); confirm.requestDelete(room.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <ConfirmDelete
         open={confirm.isOpen}
         onOpenChange={(open) => !open && confirm.cancelDelete()}
