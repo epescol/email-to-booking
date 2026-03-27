@@ -202,7 +202,7 @@ export default function TreatmentsManager() {
             placeholder="Codice (es. HB)"
             className="w-28 font-mono text-sm"
           />
-          <Button type="submit" size="sm" disabled={!newName.trim() || addTreatment.isPending}>
+          <Button type="submit" size="sm" disabled={!newName.trim() || !newCode.trim() || addTreatment.isPending}>
             <Plus className="h-4 w-4 mr-1" /> Aggiungi
           </Button>
         </form>
