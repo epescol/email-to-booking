@@ -41,7 +41,7 @@ export default function TreatmentsManager() {
   const confirm = useConfirmDelete();
   const addTreatment = useMutation({
     mutationFn: async () => {
-      if (!profile?.hotel_id || !newName.trim()) throw new Error("Nome richiesto");
+      if (!profile?.hotel_id || !newName.trim() || !newCode.trim()) throw new Error("Nome e codice richiesti");
       const maxSort = treatments?.length ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
       const { error } = await supabase.from("treatments").insert({
         hotel_id: profile.hotel_id,
@@ -202,7 +202,7 @@ export default function TreatmentsManager() {
             placeholder="Codice (es. HB)"
             className="w-28 font-mono text-sm"
           />
-          <Button type="submit" size="sm" disabled={!newName.trim() || addTreatment.isPending}>
+          <Button type="submit" size="sm" disabled={!newName.trim() || !newCode.trim() || addTreatment.isPending}>
             <Plus className="h-4 w-4 mr-1" /> Aggiungi
           </Button>
         </form>
