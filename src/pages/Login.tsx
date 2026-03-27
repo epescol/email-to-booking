@@ -63,6 +63,14 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
+      <a
+        href="https://interpromotion.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        powered by <span className="font-semibold">INTERPROMOTION</span>
+      </a>
     </div>
   );
 }
