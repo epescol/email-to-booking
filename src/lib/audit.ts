@@ -7,6 +7,8 @@ export type AuditAction =
   | "booking_request.status_changed"
   | "booking_request.offer_sent"
   | "booking_request.send_failed"
+  | "booking_request.email_imported"
+  | "booking_request.ai_parse_failed"
   | "email_settings.updated"
   | "auth.admin_login"
   | "pricing.period_created"
