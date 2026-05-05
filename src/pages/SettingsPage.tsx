@@ -72,6 +72,15 @@ export default function SettingsPage() {
     onSuccess: () => {
       toast.success("Impostazioni salvate");
       queryClient.invalidateQueries({ queryKey: ["email_settings"] });
+      if (profile?.hotel_id) {
+        logAudit("email_settings.updated", "hotel_email_settings", profile.hotel_id, {
+          hotel_id: profile.hotel_id,
+          imap_host: form.imap_host,
+          smtp_host: form.smtp_host,
+          imap_password_changed: !!form.imap_password,
+          smtp_password_changed: !!form.smtp_password,
+        });
+      }
     },
     onError: (e) => toast.error(e.message),
   });
