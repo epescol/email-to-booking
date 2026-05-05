@@ -61,7 +61,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
+    auditCtx.hotelId = profile.hotel_id;
     const { data: booking } = await supabase
       .from("booking_requests")
       .select("*")
