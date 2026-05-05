@@ -54,12 +54,12 @@ export default function SettingsPage() {
         imap_host: settings.imap_host || "",
         imap_port: settings.imap_port || 993,
         imap_user: settings.imap_user || "",
-        imap_password: settings.imap_password || "",
+        imap_password: "", // never prefill — leave empty to keep existing
         imap_use_ssl: settings.imap_use_ssl ?? true,
         smtp_host: settings.smtp_host || "",
         smtp_port: settings.smtp_port || 587,
         smtp_user: settings.smtp_user || "",
-        smtp_password: settings.smtp_password || "",
+        smtp_password: "", // never prefill — leave empty to keep existing
         smtp_use_ssl: settings.smtp_use_ssl ?? true,
         filter_sender_email: settings.filter_sender_email || "",
       });
