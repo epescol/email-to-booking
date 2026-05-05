@@ -86,18 +86,23 @@ Deno.serve(async (req) => {
     }
 
     if (action === "save") {
-      const formData = { ...payload };
+      const formData: Record<string, unknown> = { ...payload };
 
-      // Encrypt passwords before saving
-      const passwordFields = ["imap_password", "smtp_password"];
+      // Encrypt passwords before saving. If the field is empty/missing,
+      // do NOT overwrite the existing stored (encrypted) value.
+      const passwordFields = ["imap_password", "smtp_password"] as const;
       for (const field of passwordFields) {
-        if (formData[field]) {
+        const value = formData[field];
+        if (typeof value === "string" && value.length > 0) {
           const { data, error } = await supabaseAdmin.rpc("encrypt_value", {
-            _plaintext: formData[field],
+            _plaintext: value,
             _key: encryptionKey,
           });
           if (error) throw error;
           formData[field] = data;
+        } else {
+          // Remove from payload so update/insert doesn't blank it out
+          delete formData[field];
         }
       }
 
