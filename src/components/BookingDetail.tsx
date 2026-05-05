@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 function stripQuotedContent(body: string | null): string {
   if (!body) return "";
@@ -326,7 +327,7 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                         <span>{format(new Date(msg.sent_at), "dd/MM/yy HH:mm")}</span>
                       </div>
                       {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
-                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripQuotedContent(msg.body) }} />
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(stripQuotedContent(msg.body)) }} />
                     </div>
                   ))}
                 </div>

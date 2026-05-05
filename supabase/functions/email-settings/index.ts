@@ -1,11 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -22,20 +20,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Auth check
-    const authHeader = req.headers.get("Authorization")!;
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const token = authHeader?.replace("Bearer ", "") || "";
-    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    // Auth check — use getUser() to validate JWT server-side (not getClaims which only decodes)
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Non autenticato" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await callerClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Non autenticato" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = user.id;
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Admin-only: managing SMTP/IMAP credentials must be restricted to admins
+    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (roleError || !isAdmin) {
+      return new Response(JSON.stringify({ error: "Permesso negato" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get user's hotel_id
     const { data: profile } = await callerClient
@@ -50,7 +65,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const { action, ...payload } = await req.json();
 
     if (action === "get") {
@@ -79,7 +93,6 @@ Deno.serve(async (req) => {
             if (!error && data) {
               result[field] = data;
             }
-            // If decryption fails, it might be plaintext (not yet migrated), return as-is
           } catch {
             // Keep original value
           }
@@ -107,7 +120,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check if settings exist
       const { data: existing } = await supabaseAdmin
         .from("hotel_email_settings")
         .select("id")
@@ -136,7 +148,7 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

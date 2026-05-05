@@ -100,8 +100,16 @@ const EDITOR_CONFIG = {
   },
   htmlSupport: {
     allow: [
-      { name: /.*/} as any,
-    ],
+      {
+        name: /^(p|b|i|u|s|strong|em|small|sub|sup|a|ul|ol|li|blockquote|table|thead|tbody|tfoot|tr|td|th|h[1-6]|br|hr|div|span|img|figure|figcaption|caption|colgroup|col)$/,
+        attributes: true,
+        classes: true,
+        styles: true,
+      },
+    ] as any,
+    disallow: [
+      { name: /^(script|iframe|object|embed|form|input|button|link|meta|style)$/ },
+    ] as any,
   },
   placeholder: "Scrivi il contenuto...",
 };
