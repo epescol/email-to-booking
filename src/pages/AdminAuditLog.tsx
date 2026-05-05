@@ -68,6 +68,24 @@ function actionVariant(action: string): "default" | "secondary" | "destructive" 
   return "default";
 }
 
+const SENSITIVE_KEY_RE = /(password|secret|token|api[_-]?key|authorization|cookie|x-webhook-secret|webhook_secret|service[_-]?role|encryption[_-]?key|private[_-]?key)/i;
+
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (SENSITIVE_KEY_RE.test(k)) {
+        out[k] = "[REDACTED]";
+      } else {
+        out[k] = redact(v);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
 export default function AdminAuditLog() {
   const [category, setCategory] = useState<string>("all");
   const [hotelId, setHotelId] = useState<string>("all");
@@ -78,8 +96,8 @@ export default function AdminAuditLog() {
 
   const copyJson = async (value: unknown) => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
-      toast.success("JSON copiato negli appunti");
+      await navigator.clipboard.writeText(JSON.stringify(redact(value), null, 2));
+      toast.success("JSON copiato negli appunti (campi sensibili oscurati)");
     } catch {
       toast.error("Impossibile copiare");
     }
@@ -308,7 +326,7 @@ export default function AdminAuditLog() {
                         <TableCell>
                           {row.metadata && Object.keys(row.metadata).length > 0 ? (
                             <pre className="text-[10px] bg-muted/40 rounded px-2 py-1 max-w-md overflow-x-auto truncate">
-                              {JSON.stringify(row.metadata, null, 0)}
+                              {JSON.stringify(redact(row.metadata), null, 0)}
                             </pre>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
@@ -395,7 +413,7 @@ export default function AdminAuditLog() {
                     </Button>
                   </div>
                   <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto max-h-[40vh] overflow-y-auto">
-{JSON.stringify(selected.metadata ?? {}, null, 2)}
+{JSON.stringify(redact(selected.metadata ?? {}), null, 2)}
                   </pre>
                 </div>
 
