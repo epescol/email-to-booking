@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 
 interface FetchResult {
   success: boolean;
