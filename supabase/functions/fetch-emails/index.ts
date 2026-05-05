@@ -41,6 +41,15 @@ serve(async (req) => {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+      await logEvent(supabase, {
+        function_name: "fetch-emails",
+        level: "info",
+        event: "webhook.received",
+        message: `Webhook received with ${emails.length} email(s)`,
+        hotel_id: defaultHotelId || null,
+        metadata: { count: emails.length, default_hotel_id: defaultHotelId || null },
+      });
+
       // Cache: per-hotel sender filter, resolved on first use
       const filterCache = new Map<string, string | null>();
       const loadFilter = async (hid: string): Promise<string | null> => {
