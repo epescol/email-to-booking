@@ -413,7 +413,7 @@ export default function AdminAuditLog() {
                     </Button>
                   </div>
                   <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto max-h-[40vh] overflow-y-auto">
-{JSON.stringify(selected.metadata ?? {}, null, 2)}
+{JSON.stringify(redact(selected.metadata ?? {}), null, 2)}
                   </pre>
                 </div>
 
