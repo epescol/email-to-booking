@@ -215,6 +215,17 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     },
   });
 
+  // Check SMTP credentials configured (via secure email-settings function — only flags returned)
+  const { data: emailSettings } = useQuery({
+    queryKey: ["email_settings_smtp_check"],
+    queryFn: async () => {
+      const res = await supabase.functions.invoke("email-settings", { body: { action: "get" } });
+      if (res.error) return null;
+      return res.data as { smtp_host?: string; smtp_user?: string; has_smtp_password?: boolean } | null;
+    },
+  });
+  const smtpConfigured = !!emailSettings?.smtp_host && !!emailSettings?.smtp_user && !!emailSettings?.has_smtp_password;
+
   // Auto-select default template
   const [defaultApplied, setDefaultApplied] = useState(false);
   useEffect(() => {
