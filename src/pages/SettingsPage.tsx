@@ -11,6 +11,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { logAudit } from "@/lib/audit";
 import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 
 interface FetchResult {
