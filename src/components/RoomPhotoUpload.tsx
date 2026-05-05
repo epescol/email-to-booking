@@ -8,9 +8,10 @@ interface RoomPhotoUploadProps {
   photos: (string | null)[];
   onPhotosChange: (photos: string[]) => void;
   roomId?: string;
+  hotelId?: string;
 }
 
-export function RoomPhotoUpload({ photos, onPhotosChange, roomId }: RoomPhotoUploadProps) {
+export function RoomPhotoUpload({ photos, onPhotosChange, roomId, hotelId }: RoomPhotoUploadProps) {
   const [uploading, setUploading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
@@ -30,8 +31,9 @@ export function RoomPhotoUpload({ photos, onPhotosChange, roomId }: RoomPhotoUpl
     setUploading(slotIndex);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      if (!hotelId) throw new Error("Hotel non disponibile");
       const prefix = roomId || "new";
-      const path = `${prefix}/${Date.now()}-${slotIndex}.${ext}`;
+      const path = `${hotelId}/${prefix}/${Date.now()}-${slotIndex}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("room-photos")

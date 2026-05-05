@@ -235,6 +235,7 @@ export default function Rooms() {
                     photo_url_4: photos[3] || "",
                   })}
                   roomId={editingId || undefined}
+                  hotelId={profile?.hotel_id || undefined}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
