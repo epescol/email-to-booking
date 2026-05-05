@@ -811,6 +811,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _profile_hotel_id_unchanged: {
+        Args: { _new_hotel_id: string; _user_id: string }
+        Returns: boolean
+      }
       decrypt_value: {
         Args: { _ciphertext: string; _key: string }
         Returns: string
