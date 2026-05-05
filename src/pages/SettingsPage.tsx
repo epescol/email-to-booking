@@ -54,12 +54,12 @@ export default function SettingsPage() {
         imap_host: settings.imap_host || "",
         imap_port: settings.imap_port || 993,
         imap_user: settings.imap_user || "",
-        imap_password: settings.imap_password || "",
+        imap_password: "", // never prefill — leave empty to keep existing
         imap_use_ssl: settings.imap_use_ssl ?? true,
         smtp_host: settings.smtp_host || "",
         smtp_port: settings.smtp_port || 587,
         smtp_user: settings.smtp_user || "",
-        smtp_password: settings.smtp_password || "",
+        smtp_password: "", // never prefill — leave empty to keep existing
         smtp_use_ssl: settings.smtp_use_ssl ?? true,
         filter_sender_email: settings.filter_sender_email || "",
       });
@@ -105,7 +105,7 @@ export default function SettingsPage() {
     },
   });
 
-  const imapConfigured = !!settings?.imap_host && !!settings?.imap_user && !!settings?.imap_password;
+  const imapConfigured = !!settings?.imap_host && !!settings?.imap_user && !!settings?.has_imap_password;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
@@ -215,7 +215,13 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Password</Label>
-                <Input type="password" value={form.imap_password} onChange={(e) => setForm({ ...form, imap_password: e.target.value })} />
+                <Input
+                  type="password"
+                  value={form.imap_password}
+                  onChange={(e) => setForm({ ...form, imap_password: e.target.value })}
+                  placeholder={settings?.has_imap_password ? "•••••••• (salvata) — lascia vuoto per non modificare" : ""}
+                  autoComplete="new-password"
+                />
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -249,7 +255,13 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Password</Label>
-                <Input type="password" value={form.smtp_password} onChange={(e) => setForm({ ...form, smtp_password: e.target.value })} />
+                <Input
+                  type="password"
+                  value={form.smtp_password}
+                  onChange={(e) => setForm({ ...form, smtp_password: e.target.value })}
+                  placeholder={settings?.has_smtp_password ? "•••••••• (salvata) — lascia vuoto per non modificare" : ""}
+                  autoComplete="new-password"
+                />
               </div>
             </div>
             <div className="flex items-center gap-2">

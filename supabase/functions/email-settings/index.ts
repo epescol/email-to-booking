@@ -69,24 +69,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Decrypt passwords before returning
-      const result = { ...settings };
-      const passwordFields = ["imap_password", "smtp_password"] as const;
-      for (const field of passwordFields) {
-        if (result[field]) {
-          try {
-            const { data, error } = await supabaseAdmin.rpc("decrypt_value", {
-              _ciphertext: result[field],
-              _key: encryptionKey,
-            });
-            if (!error && data) {
-              result[field] = data;
-            }
-          } catch {
-            // Keep original value
-          }
-        }
-      }
+      // SECURITY: never return decrypted passwords to the client.
+      // Only expose presence flags so the UI can show "•••• (saved)".
+      const { imap_password, smtp_password, ...safe } = settings as Record<string, unknown>;
+      const result = {
+        ...safe,
+        imap_password: "",
+        smtp_password: "",
+        has_imap_password: Boolean(imap_password),
+        has_smtp_password: Boolean(smtp_password),
+      };
 
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -94,18 +86,23 @@ Deno.serve(async (req) => {
     }
 
     if (action === "save") {
-      const formData = { ...payload };
+      const formData: Record<string, unknown> = { ...payload };
 
-      // Encrypt passwords before saving
-      const passwordFields = ["imap_password", "smtp_password"];
+      // Encrypt passwords before saving. If the field is empty/missing,
+      // do NOT overwrite the existing stored (encrypted) value.
+      const passwordFields = ["imap_password", "smtp_password"] as const;
       for (const field of passwordFields) {
-        if (formData[field]) {
+        const value = formData[field];
+        if (typeof value === "string" && value.length > 0) {
           const { data, error } = await supabaseAdmin.rpc("encrypt_value", {
-            _plaintext: formData[field],
+            _plaintext: value,
             _key: encryptionKey,
           });
           if (error) throw error;
           formData[field] = data;
+        } else {
+          // Remove from payload so update/insert doesn't blank it out
+          delete formData[field];
         }
       }
 
