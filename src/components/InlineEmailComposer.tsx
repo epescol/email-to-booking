@@ -173,6 +173,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [body, setBody] = useState("");
   const [emailBodyContent, setEmailBodyContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmChildrenOpen, setConfirmChildrenOpen] = useState(false);
+  const [childrenWarningRooms, setChildrenWarningRooms] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
