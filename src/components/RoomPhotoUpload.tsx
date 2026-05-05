@@ -8,9 +8,10 @@ interface RoomPhotoUploadProps {
   photos: (string | null)[];
   onPhotosChange: (photos: string[]) => void;
   roomId?: string;
+  hotelId?: string;
 }
 
-export function RoomPhotoUpload({ photos, onPhotosChange, roomId }: RoomPhotoUploadProps) {
+export function RoomPhotoUpload({ photos, onPhotosChange, roomId, hotelId }: RoomPhotoUploadProps) {
   const [uploading, setUploading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
