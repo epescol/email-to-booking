@@ -794,6 +794,16 @@ export type Database = {
         }
         Returns: string
       }
+      log_audit_event_as: {
+        Args: {
+          _action: string
+          _entity_id: string
+          _entity_type: string
+          _metadata?: Json
+          _user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "user"
