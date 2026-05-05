@@ -6,13 +6,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, BedDouble, Utensils, Users, Trash2, Archive, ArchiveRestore, Info, Trash, ArchiveX, Send, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { logAudit } from "@/lib/audit";
+
+const AUDIT_ACTION_META: Record<string, { label: string; icon: typeof Info; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  "booking_request.deleted": { label: "Eliminata", icon: Trash, variant: "destructive" },
+  "booking_request.archived": { label: "Archiviata", icon: Archive, variant: "secondary" },
+  "booking_request.unarchived": { label: "Ripristinata", icon: ArchiveX, variant: "secondary" },
+  "booking_request.status_changed": { label: "Cambio stato", icon: RefreshCw, variant: "outline" },
+  "booking_request.offer_sent": { label: "Offerta inviata", icon: Send, variant: "default" },
+};
+
+function describeAuditMetadata(action: string, metadata: Record<string, unknown> | null): string[] {
+  if (!metadata) return [];
+  const lines: string[] = [];
+  if (action === "booking_request.status_changed" && metadata.from && metadata.to) {
+    lines.push(`Stato: ${metadata.from} → ${metadata.to}`);
+  }
+  if (action === "booking_request.offer_sent") {
+    if (metadata.to) lines.push(`A: ${metadata.to}`);
+    if (metadata.subject) lines.push(`Oggetto: ${metadata.subject}`);
+  }
+  if (action === "booking_request.deleted" && metadata.email) {
+    lines.push(`Email: ${metadata.email}`);
+  }
+  return lines;
+}
 
 function stripQuotedContent(body: string | null): string {
   if (!body) return "";
