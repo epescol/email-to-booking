@@ -126,6 +126,20 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
+  const { data: auditLogs } = useQuery({
+    queryKey: ["audit_log", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_log")
+        .select("*")
+        .eq("entity_type", "booking_request")
+        .eq("entity_id", bookingId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: accommodations } = useQuery({
     queryKey: ["booking_accommodations", bookingId],
     queryFn: async () => {
