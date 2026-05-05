@@ -408,8 +408,22 @@ export default function AdminEdgeLogs() {
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">X-Hotel-Request-ID</Label>
-                  <div className="font-mono text-xs break-all">
-                    {selected.x_hotel_request_id || "—"}
+                  <div className="font-mono text-xs break-all flex items-center gap-2">
+                    <span>{selected.x_hotel_request_id || "—"}</span>
+                    {selected.x_hotel_request_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2"
+                        onClick={() => {
+                          const id = selected.x_hotel_request_id;
+                          setSelected(null);
+                          openBookingForXhrid(id);
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" /> Apri richiesta
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div>
