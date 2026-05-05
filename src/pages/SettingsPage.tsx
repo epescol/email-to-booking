@@ -215,7 +215,13 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Password</Label>
-                <Input type="password" value={form.imap_password} onChange={(e) => setForm({ ...form, imap_password: e.target.value })} />
+                <Input
+                  type="password"
+                  value={form.imap_password}
+                  onChange={(e) => setForm({ ...form, imap_password: e.target.value })}
+                  placeholder={settings?.has_imap_password ? "•••••••• (salvata) — lascia vuoto per non modificare" : ""}
+                  autoComplete="new-password"
+                />
               </div>
             </div>
             <div className="flex items-center gap-2">
