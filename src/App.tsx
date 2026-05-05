@@ -44,6 +44,7 @@ function AuthGate() {
             <Route path="/admin/templates" element={<AdminTemplates />} />
             <Route path="/admin/languages" element={<AdminLanguages />} />
             <Route path="/admin/audit" element={<AdminAuditLog />} />
+            <Route path="/admin/edge-logs" element={<AdminEdgeLogs />} />
             <Route path="*" element={<Navigate to="/admin/users" replace />} />
           </>
         ) : (
