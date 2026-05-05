@@ -126,6 +126,20 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
     },
   });
 
+  const { data: auditLogs } = useQuery({
+    queryKey: ["audit_log", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_log")
+        .select("*")
+        .eq("entity_type", "booking_request")
+        .eq("entity_id", bookingId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: accommodations } = useQuery({
     queryKey: ["booking_accommodations", bookingId],
     queryFn: async () => {
@@ -341,6 +355,35 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
                       </div>
                       {msg.subject && <p className="font-medium mb-1">{msg.subject}</p>}
                       <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(stripQuotedContent(msg.body)) }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Audit Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!auditLogs?.length ? (
+                <p className="text-sm text-muted-foreground">Nessun evento registrato</p>
+              ) : (
+                <div className="space-y-2">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between gap-3 p-2 rounded-md bg-muted/40 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{log.action}</p>
+                        {log.metadata && Object.keys(log.metadata as object).length > 0 && (
+                          <pre className="mt-1 text-[10px] text-muted-foreground whitespace-pre-wrap break-all font-mono">
+                            {JSON.stringify(log.metadata, null, 0)}
+                          </pre>
+                        )}
+                      </div>
+                      <span className="text-muted-foreground shrink-0">
+                        {format(new Date(log.created_at), "dd/MM/yy HH:mm")}
+                      </span>
                     </div>
                   ))}
                 </div>
