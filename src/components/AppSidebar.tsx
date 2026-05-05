@@ -1,4 +1,4 @@
-import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail, Languages, ScrollText } from "lucide-react";
+import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail, Languages, ScrollText, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
