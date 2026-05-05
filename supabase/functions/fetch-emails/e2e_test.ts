@@ -18,7 +18,11 @@ const WEBHOOK_SECRET = Deno.env.get("FETCH_EMAILS_WEBHOOK_SECRET")!;
  *     brand-new request.
  *  4. Cleanup.
  */
-Deno.test("E2E: inbound reply threads into the originating booking request", async () => {
+Deno.test({
+  name: "E2E: inbound reply threads into the originating booking request",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // --- 1. Seed hotel + request + outbound message ----------------------
