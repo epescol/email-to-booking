@@ -168,6 +168,7 @@ export default function AdminTemplates() {
       if (!templateName.trim()) throw new Error("Inserisci un nome per il template");
 
       const groupId = editingGroupId || crypto.randomUUID();
+      const langsTouched: string[] = [];
 
       for (const [lang, variant] of Object.entries(variants)) {
         // Skip empty variants
@@ -208,11 +209,16 @@ export default function AdminTemplates() {
           const { error } = await supabase.from("offer_templates").insert({ ...payload, hotel_id: selectedHotelId });
           if (error) throw error;
         }
+        langsTouched.push(lang);
       }
+      return { groupId, langs: langsTouched, isNew: !editingGroupId };
     },
-    onSuccess: () => {
+    onSuccess: (info) => {
       toast.success(editingGroupId ? "Template aggiornato" : "Template creato");
       queryClient.invalidateQueries({ queryKey: ["offer_templates", selectedHotelId] });
+      logAudit("template.saved", "offer_template", info.groupId, {
+        hotel_id: selectedHotelId, name: templateName, languages: info.langs, created: info.isNew,
+      });
       closeEditor();
     },
     onError: (e) => toast.error(e.message),
@@ -225,10 +231,14 @@ export default function AdminTemplates() {
         const { error } = await supabase.from("offer_templates").delete().eq("id", t.id);
         if (error) throw error;
       }
+      return { groupId, count: toDelete.length };
     },
-    onSuccess: () => {
+    onSuccess: (info) => {
       toast.success("Template eliminato");
       queryClient.invalidateQueries({ queryKey: ["offer_templates", selectedHotelId] });
+      logAudit("template.deleted", "offer_template", info.groupId, {
+        hotel_id: selectedHotelId, deleted_count: info.count,
+      });
     },
     onError: (e) => toast.error(e.message),
   });
