@@ -326,7 +326,7 @@ export default function AdminAuditLog() {
                         <TableCell>
                           {row.metadata && Object.keys(row.metadata).length > 0 ? (
                             <pre className="text-[10px] bg-muted/40 rounded px-2 py-1 max-w-md overflow-x-auto truncate">
-                              {JSON.stringify(row.metadata, null, 0)}
+                              {JSON.stringify(redact(row.metadata), null, 0)}
                             </pre>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
