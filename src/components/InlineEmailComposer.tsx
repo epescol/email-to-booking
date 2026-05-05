@@ -11,6 +11,16 @@ import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { WysiwygEditor } from "@/components/WysiwygEditor";
 import { DEFAULT_ROOM_CARD_TEMPLATE, renderTemplate } from "@/components/RoomCardTemplateEditor";
 
@@ -163,6 +173,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [body, setBody] = useState("");
   const [emailBodyContent, setEmailBodyContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmChildrenOpen, setConfirmChildrenOpen] = useState(false);
+  const [childrenWarningRooms, setChildrenWarningRooms] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
@@ -439,10 +451,15 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     const roomsWithChildrenNoPrice = selectedRooms.filter(sr => sr.childrenCount > 0 && !sr.childrenPrice);
     if (roomsWithChildrenNoPrice.length > 0) {
       const roomNames = roomsWithChildrenNoPrice.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
-      const confirmed = window.confirm(`Attenzione: le seguenti camere hanno bambini senza prezzo inserito: ${roomNames}.\n\nVuoi inviare comunque l'offerta?`);
-      if (!confirmed) return;
+      setChildrenWarningRooms(roomNames);
+      setConfirmChildrenOpen(true);
+      return;
     }
 
+    await performSend();
+  };
+
+  const performSend = async () => {
     setSending(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -747,6 +764,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           </Button>
         </div>
       </CardContent>
+
+      <AlertDialog open={confirmChildrenOpen} onOpenChange={setConfirmChildrenOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Prezzo bambini mancante</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le seguenti camere hanno bambini senza prezzo inserito: {childrenWarningRooms}.
+              <br /><br />
+              Vuoi inviare comunque l'offerta?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmChildrenOpen(false);
+                performSend();
+              }}
+            >
+              Invia comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
