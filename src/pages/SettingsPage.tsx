@@ -10,7 +10,16 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { Mail, Server, Shield } from "lucide-react";
+import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+
+interface FetchResult {
+  success: boolean;
+  fetched: number;
+  forwarded: number;
+  imported: number;
+  errors: string[];
+  ran_at: string;
+}
 
 
 async function callEmailSettings(action: string, payload: Record<string, unknown> = {}) {
