@@ -29,8 +29,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy, Eye } from "lucide-react";
+import { Copy, Eye, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { BookingDetail } from "@/components/BookingDetail";
 
 type LogRow = {
   id: string;
