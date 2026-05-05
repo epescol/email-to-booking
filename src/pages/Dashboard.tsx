@@ -13,6 +13,7 @@ import { format, differenceInDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { BookingDetail } from "@/components/BookingDetail";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { logAudit } from "@/lib/audit";
 
 const STATUSES = [
   { value: "all", label: "Tutte" },
@@ -81,6 +82,12 @@ export default function Dashboard() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      const target = allBookings?.find((b) => b.id === id);
+      await logAudit("booking_request.deleted", "booking_request", id, {
+        hotel_id: target?.hotel_id,
+        email: target?.email,
+        status: target?.status,
+      });
       await supabase.from("booking_accommodations").delete().eq("request_id", id);
       await supabase.from("booking_messages").delete().eq("request_id", id);
       const { error } = await supabase.from("booking_requests").delete().eq("id", id);

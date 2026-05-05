@@ -12,6 +12,7 @@ import { it } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { InlineEmailComposer } from "@/components/InlineEmailComposer";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { logAudit } from "@/lib/audit";
 
 function stripQuotedContent(body: string | null): string {
   if (!body) return "";
@@ -58,6 +59,11 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      await logAudit("booking_request.deleted", "booking_request", bookingId, {
+        hotel_id: booking?.hotel_id,
+        email: booking?.email,
+        status: booking?.status,
+      });
       await supabase.from("booking_accommodations").delete().eq("request_id", bookingId);
       await supabase.from("booking_messages").delete().eq("request_id", bookingId);
       const { error } = await supabase.from("booking_requests").delete().eq("id", bookingId);
@@ -74,9 +80,16 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
 
   const archiveMutation = useMutation({
     mutationFn: async () => {
-      const newStatus = booking?.status === "archiviata" ? "nuova" : "archiviata";
+      const oldStatus = booking?.status;
+      const newStatus = oldStatus === "archiviata" ? "nuova" : "archiviata";
       const { error } = await supabase.from("booking_requests").update({ status: newStatus }).eq("id", bookingId);
       if (error) throw error;
+      await logAudit(
+        newStatus === "archiviata" ? "booking_request.archived" : "booking_request.unarchived",
+        "booking_request",
+        bookingId,
+        { hotel_id: booking?.hotel_id, from: oldStatus, to: newStatus },
+      );
     },
     onSuccess: () => {
       const wasArchived = booking?.status === "archiviata";
