@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import TreatmentsManager, { useTreatments } from "@/components/TreatmentsManager";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { logAudit } from "@/lib/audit";
 
 type PricingMode = "per_room" | "per_occupancy";
 
