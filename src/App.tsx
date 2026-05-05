@@ -14,6 +14,7 @@ import AdminTemplates from "./pages/AdminTemplates";
 import AdminLanguages from "./pages/AdminLanguages";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsers from "./pages/AdminUsers";
+import AdminAuditLog from "./pages/AdminAuditLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
