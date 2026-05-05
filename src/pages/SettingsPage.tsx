@@ -111,6 +111,54 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">Configura le credenziali email e il webhook per il tuo hotel</p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Download className="h-4 w-4" /> Scarica Email
+          </CardTitle>
+          <CardDescription>
+            Avvia manualmente il fetch IMAP per importare le nuove email del tuo hotel
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            type="button"
+            onClick={() => fetchMutation.mutate()}
+            disabled={fetchMutation.isPending}
+          >
+            {fetchMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Operazione in corso...</>
+            ) : (
+              <><Download className="h-4 w-4 mr-2" /> Scarica email ora</>
+            )}
+          </Button>
+
+          {fetchResult && (
+            <div className="rounded-md border p-3 text-sm space-y-2">
+              <div className="flex items-center gap-2 font-medium">
+                {fetchResult.success ? (
+                  <><CheckCircle2 className="h-4 w-4 text-green-600" /> Operazione completata</>
+                ) : (
+                  <><AlertCircle className="h-4 w-4 text-destructive" /> Completata con errori</>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                <div><span className="font-medium text-foreground">{fetchResult.fetched}</span> scaricate</div>
+                <div><span className="font-medium text-foreground">{fetchResult.forwarded}</span> inoltrate</div>
+                <div><span className="font-medium text-foreground">{fetchResult.imported}</span> importate</div>
+              </div>
+              {fetchResult.errors.length > 0 && (
+                <ul className="list-disc list-inside text-destructive text-xs space-y-1 pt-2 border-t">
+                  {fetchResult.errors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              )}
+              <div className="text-xs text-muted-foreground pt-1">
+                Eseguito: {new Date(fetchResult.ran_at).toLocaleString("it-IT")}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
