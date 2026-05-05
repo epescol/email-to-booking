@@ -41,17 +41,6 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Admin-only: managing SMTP/IMAP credentials must be restricted to admins
-    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-    if (roleError || !isAdmin) {
-      return new Response(JSON.stringify({ error: "Permesso negato" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Get user's hotel_id
     const { data: profile } = await callerClient
       .from("profiles")
