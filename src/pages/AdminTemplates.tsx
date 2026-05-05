@@ -19,6 +19,7 @@ import { useLanguages, useHotelLanguages } from "@/hooks/useLanguages";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import RoomCardTemplateEditor from "@/components/RoomCardTemplateEditor";
 import mjml2html from "mjml-browser";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface OfferTemplate {
   id: string;
@@ -573,7 +574,7 @@ export default function AdminTemplates() {
                   <DialogTitle>Anteprima: {templates.find(t => t.id === previewId)?.name}</DialogTitle>
                 </DialogHeader>
                 <div className="border rounded-lg p-4 bg-white">
-                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: templates.find(t => t.id === previewId)?.body_template || "" }} />
+                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(templates.find(t => t.id === previewId)?.body_template || "") }} />
                 </div>
               </DialogContent>
             </Dialog>

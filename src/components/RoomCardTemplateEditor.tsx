@@ -12,6 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useHotelLanguages } from "@/hooks/useLanguages";
 import mjml2html from "mjml-browser";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 const DEFAULT_ROOM_CARD_TEMPLATE = `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
   {{#foto}}<tr><td colspan="2"><img src="{{foto}}" alt="{{nome_camera}}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px 12px 0 0;display:block;" /></td></tr>{{/foto}}
@@ -338,7 +339,7 @@ export default function RoomCardTemplateEditor({ hotelId }: { hotelId?: string }
             <DialogTitle>Anteprima Card Camera — {activeTab.toUpperCase()}</DialogTitle>
           </DialogHeader>
           <div className="border rounded-lg p-4 bg-white">
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewHtml) }} />
           </div>
         </DialogContent>
       </Dialog>

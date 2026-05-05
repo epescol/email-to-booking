@@ -711,6 +711,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                 srcDoc={body}
                 className="w-full border-0"
                 title="Email Preview"
+                sandbox="allow-same-origin"
                 style={{ minHeight: '400px' }}
                 onLoad={(e) => {
                   const iframe = e.currentTarget;

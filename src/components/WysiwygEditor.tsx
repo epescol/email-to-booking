@@ -100,7 +100,15 @@ const EDITOR_CONFIG = {
   },
   htmlSupport: {
     allow: [
-      { name: /.*/} as any,
+      {
+        name: /^(p|b|i|u|s|strong|em|small|sub|sup|a|ul|ol|li|blockquote|table|thead|tbody|tfoot|tr|td|th|h[1-6]|br|hr|div|span|img|figure|figcaption|caption|colgroup|col)$/,
+        attributes: ["href", "target", "rel", "src", "alt", "title", "width", "height", "style", "class", "align", "colspan", "rowspan", "cellpadding", "cellspacing", "border"],
+        classes: true,
+        styles: true,
+      },
+    ],
+    disallow: [
+      { name: /^(script|iframe|object|embed|form|input|button|link|meta|style)$/ },
     ],
   },
   placeholder: "Scrivi il contenuto...",
