@@ -341,7 +341,20 @@ export default function AdminEdgeLogs() {
                         {row.hotel_id ? hotelById.get(row.hotel_id) || row.hotel_id.slice(0, 8) : "—"}
                       </TableCell>
                       <TableCell className="text-xs font-mono">
-                        {row.x_hotel_request_id ? row.x_hotel_request_id.slice(0, 12) + "…" : "—"}
+                        {row.x_hotel_request_id ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBookingForXhrid(row.x_hotel_request_id);
+                            }}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                            title="Apri richiesta"
+                          >
+                            {row.x_hotel_request_id.slice(0, 12) + "…"}
+                            <ExternalLink className="h-3 w-3" />
+                          </button>
+                        ) : "—"}
                       </TableCell>
                       <TableCell className="text-xs max-w-md truncate">
                         {row.message || "—"}
