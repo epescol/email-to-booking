@@ -18,6 +18,7 @@ import { useUserRoles } from "@/hooks/useProfile";
 import { useLanguages, useHotelLanguages } from "@/hooks/useLanguages";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
 import RoomCardTemplateEditor from "@/components/RoomCardTemplateEditor";
+import { logAudit } from "@/lib/audit";
 import mjml2html from "mjml-browser";
 import { sanitizeHtml } from "@/lib/sanitize";
 
