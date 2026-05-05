@@ -225,11 +225,20 @@ Deno.serve(async (req) => {
         await supabaseAdmin.from("room_translations").delete().in("room_id",
           (await supabaseAdmin.from("rooms").select("id").eq("hotel_id", hotelId)).data?.map(r => r.id) || []
         );
-        const { data: bookings } = await supabaseAdmin.from("booking_requests").select("id").eq("hotel_id", hotelId);
+        const { data: bookings } = await supabaseAdmin.from("booking_requests").select("id, email, status").eq("hotel_id", hotelId);
         const bookingIds = (bookings || []).map(b => b.id);
         if (bookingIds.length > 0) {
           await supabaseAdmin.from("booking_accommodations").delete().in("request_id", bookingIds);
           await supabaseAdmin.from("booking_messages").delete().in("request_id", bookingIds);
+          // Audit each booking deletion before removing
+          const auditRows = (bookings || []).map((b: any) => ({
+            user_id: caller.id,
+            action: "booking_request.deleted",
+            entity_type: "booking_request",
+            entity_id: b.id,
+            metadata: { hotel_id: hotelId, email: b.email, status: b.status, reason: "user_deleted" },
+          }));
+          await supabaseAdmin.from("audit_log").insert(auditRows);
         }
         await supabaseAdmin.from("booking_requests").delete().eq("hotel_id", hotelId);
         await supabaseAdmin.from("rooms").delete().eq("hotel_id", hotelId);
@@ -239,6 +248,13 @@ Deno.serve(async (req) => {
         await supabaseAdmin.from("hotel_languages").delete().eq("hotel_id", hotelId);
         await supabaseAdmin.from("hotel_email_settings").delete().eq("hotel_id", hotelId);
         await supabaseAdmin.from("hotels").delete().eq("id", hotelId);
+        await supabaseAdmin.from("audit_log").insert({
+          user_id: caller.id,
+          action: "hotel.deleted",
+          entity_type: "hotel",
+          entity_id: hotelId,
+          metadata: { deleted_user_id: user_id, bookings_deleted: bookingIds.length },
+        });
       }
 
       return new Response(JSON.stringify({ success: true }), {
