@@ -29,6 +29,7 @@ const adminItems = [
   { title: "Template", url: "/admin/templates", icon: Mail },
   { title: "Lingue", url: "/admin/languages", icon: Languages },
   { title: "Audit Log", url: "/admin/audit", icon: ScrollText },
+  { title: "Edge Logs", url: "/admin/edge-logs", icon: Activity },
 ];
 
 export function AppSidebar() {
