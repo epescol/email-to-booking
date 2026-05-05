@@ -29,8 +29,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Copy, Eye } from "lucide-react";
+import { Copy, Eye, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { BookingDetail } from "@/components/BookingDetail";
 
 type LogRow = {
   id: string;
@@ -75,6 +76,7 @@ export default function AdminEdgeLogs() {
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(200);
   const [selected, setSelected] = useState<LogRow | null>(null);
+  const [openedBookingId, setOpenedBookingId] = useState<string | null>(null);
 
   const copyJson = async (value: unknown) => {
     try {
@@ -150,6 +152,54 @@ export default function AdminEdgeLogs() {
     (hotels ?? []).forEach((h) => m.set(h.id, h.name));
     return m;
   }, [hotels]);
+
+  // Map x_hotel_request_id -> booking_request id (via booking_messages)
+  const xhridList = useMemo(() => {
+    const s = new Set<string>();
+    (rows ?? []).forEach((r) => r.x_hotel_request_id && s.add(r.x_hotel_request_id));
+    return Array.from(s);
+  }, [rows]);
+
+  const { data: xhridToBooking } = useQuery({
+    queryKey: ["xhrid_to_booking", xhridList.sort().join(",")],
+    enabled: xhridList.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_messages")
+        .select("x_hotel_request_id, request_id")
+        .in("x_hotel_request_id", xhridList);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((r) => {
+        if (r.x_hotel_request_id && r.request_id) m[r.x_hotel_request_id] = r.request_id;
+      });
+      return m;
+    },
+  });
+
+  const openBookingForXhrid = async (xhrid: string | null) => {
+    if (!xhrid) return;
+    const cached = xhridToBooking?.[xhrid];
+    if (cached) {
+      setOpenedBookingId(cached);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("booking_messages")
+      .select("request_id")
+      .eq("x_hotel_request_id", xhrid)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data?.request_id) {
+      toast.error("Nessuna richiesta trovata per questo X-Hotel-Request-ID");
+      return;
+    }
+    setOpenedBookingId(data.request_id);
+  };
+
+  if (openedBookingId) {
+    return <BookingDetail bookingId={openedBookingId} onBack={() => setOpenedBookingId(null)} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -291,7 +341,20 @@ export default function AdminEdgeLogs() {
                         {row.hotel_id ? hotelById.get(row.hotel_id) || row.hotel_id.slice(0, 8) : "—"}
                       </TableCell>
                       <TableCell className="text-xs font-mono">
-                        {row.x_hotel_request_id ? row.x_hotel_request_id.slice(0, 12) + "…" : "—"}
+                        {row.x_hotel_request_id ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBookingForXhrid(row.x_hotel_request_id);
+                            }}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                            title="Apri richiesta"
+                          >
+                            {row.x_hotel_request_id.slice(0, 12) + "…"}
+                            <ExternalLink className="h-3 w-3" />
+                          </button>
+                        ) : "—"}
                       </TableCell>
                       <TableCell className="text-xs max-w-md truncate">
                         {row.message || "—"}
@@ -345,8 +408,22 @@ export default function AdminEdgeLogs() {
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">X-Hotel-Request-ID</Label>
-                  <div className="font-mono text-xs break-all">
-                    {selected.x_hotel_request_id || "—"}
+                  <div className="font-mono text-xs break-all flex items-center gap-2">
+                    <span>{selected.x_hotel_request_id || "—"}</span>
+                    {selected.x_hotel_request_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2"
+                        onClick={() => {
+                          const id = selected.x_hotel_request_id;
+                          setSelected(null);
+                          openBookingForXhrid(id);
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" /> Apri richiesta
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div>
