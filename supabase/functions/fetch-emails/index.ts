@@ -35,29 +35,59 @@ serve(async (req) => {
 
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const hotelId = body.hotel_id;
-      if (!hotelId) {
-        return new Response(JSON.stringify({ error: "hotel_id is required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const defaultHotelId: string | undefined = body.hotel_id;
 
       const emails = body.emails || [body];
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-      // Load sender filter if configured
-      const { data: emailSettings } = await supabase
-        .from("hotel_email_settings")
-        .select("filter_sender_email")
-        .eq("hotel_id", hotelId)
-        .maybeSingle();
-      const filterSender = emailSettings?.filter_sender_email?.trim().toLowerCase() || null;
+      // Cache: per-hotel sender filter, resolved on first use
+      const filterCache = new Map<string, string | null>();
+      const loadFilter = async (hid: string): Promise<string | null> => {
+        if (filterCache.has(hid)) return filterCache.get(hid)!;
+        const { data } = await supabase
+          .from("hotel_email_settings")
+          .select("filter_sender_email")
+          .eq("hotel_id", hid)
+          .maybeSingle();
+        const f = data?.filter_sender_email?.trim().toLowerCase() || null;
+        filterCache.set(hid, f);
+        return f;
+      };
+
+      // Resolve hotel_id from the recipient address (To/Delivered-To) by
+      // matching against hotel_email_settings.imap_user (or smtp_user).
+      const resolveHotelIdFromRecipient = async (
+        toField: string | undefined,
+      ): Promise<string | null> => {
+        const recipient = extractEmailFromField(toField);
+        if (!recipient) return null;
+        const { data } = await supabase
+          .from("hotel_email_settings")
+          .select("hotel_id, imap_user, smtp_user")
+          .or(`imap_user.ilike.${recipient},smtp_user.ilike.${recipient}`)
+          .limit(1)
+          .maybeSingle();
+        return data?.hotel_id ?? null;
+      };
 
       let imported = 0;
       for (const email of emails) {
         const messageId = email.message_id || `gen-${Date.now()}-${imported}`;
+
+        // Resolve target hotel for THIS email
+        const recipientField = email.to || email.delivered_to || email.recipient;
+        const hotelId =
+          (email.hotel_id as string | undefined) ||
+          defaultHotelId ||
+          (await resolveHotelIdFromRecipient(recipientField));
+
+        if (!hotelId) {
+          console.log(
+            `Skipping email ${messageId}: cannot resolve hotel_id (recipient="${recipientField || "unknown"}")`,
+          );
+          continue;
+        }
 
         // Check if already imported
         const { data: existing } = await supabase
@@ -67,7 +97,8 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        // Filter by sender email if configured
+        // Filter by sender email if configured for this hotel
+        const filterSender = await loadFilter(hotelId);
         if (filterSender) {
           const senderEmail = extractEmailFromField(email.from);
           if (!senderEmail || senderEmail !== filterSender) {
