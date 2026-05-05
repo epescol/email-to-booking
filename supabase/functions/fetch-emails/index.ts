@@ -382,6 +382,18 @@ serve(async (req) => {
           });
         } catch { /* noop */ }
 
+        await logEvent(supabase, {
+          function_name: "fetch-emails",
+          level: "info",
+          event: "email.imported",
+          message: `Imported email into request ${requestId}`,
+          hotel_id: hotelId,
+          message_id: messageId,
+          x_hotel_request_id: email.x_hotel_request_id || null,
+          request_id: requestId,
+          metadata: { is_reply: isReply, from: email.from || null, subject: email.subject || null },
+        });
+
         imported++;
       }
 
