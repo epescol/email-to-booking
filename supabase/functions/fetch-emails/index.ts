@@ -86,10 +86,25 @@ serve(async (req) => {
 
         // Resolve target hotel for THIS email
         const recipientField = email.to || email.delivered_to || email.recipient;
-        const hotelId =
-          (email.hotel_id as string | undefined) ||
-          defaultHotelId ||
-          (await resolveHotelIdFromRecipient(recipientField));
+        let hotelResolutionMethod:
+          | "payload_hotel_id"
+          | "default_hotel_id"
+          | "recipient_header"
+          | "unresolved" = "unresolved";
+        let hotelId: string | null = null;
+        if (email.hotel_id) {
+          hotelId = email.hotel_id as string;
+          hotelResolutionMethod = "payload_hotel_id";
+        } else if (defaultHotelId) {
+          hotelId = defaultHotelId;
+          hotelResolutionMethod = "default_hotel_id";
+        } else {
+          const resolved = await resolveHotelIdFromRecipient(recipientField);
+          if (resolved) {
+            hotelId = resolved;
+            hotelResolutionMethod = "recipient_header";
+          }
+        }
 
         if (!hotelId) {
           console.log(
@@ -102,10 +117,30 @@ serve(async (req) => {
             message: `Cannot resolve hotel for recipient ${recipientField || "unknown"}`,
             message_id: messageId,
             x_hotel_request_id: email.x_hotel_request_id || null,
-            metadata: { recipient: recipientField || null, from: email.from || null, subject: email.subject || null },
+            metadata: {
+              recipient: recipientField || null,
+              from: email.from || null,
+              subject: email.subject || null,
+              hotel_resolution_method: "unresolved",
+            },
           });
           continue;
         }
+
+        await logEvent(supabase, {
+          function_name: "fetch-emails",
+          level: "info",
+          event: "hotel.resolved",
+          message: `Hotel resolved via ${hotelResolutionMethod}`,
+          hotel_id: hotelId,
+          message_id: messageId,
+          x_hotel_request_id: email.x_hotel_request_id || null,
+          metadata: {
+            hotel_resolution_method: hotelResolutionMethod,
+            recipient: recipientField || null,
+            from: email.from || null,
+          },
+        });
 
         // Check if already imported
         const { data: existing } = await supabase
