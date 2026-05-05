@@ -28,6 +28,7 @@ const adminItems = [
   { title: "Gestione Utenti", url: "/admin/users", icon: Users },
   { title: "Template", url: "/admin/templates", icon: Mail },
   { title: "Lingue", url: "/admin/languages", icon: Languages },
+  { title: "Audit Log", url: "/admin/audit", icon: ScrollText },
 ];
 
 export function AppSidebar() {
