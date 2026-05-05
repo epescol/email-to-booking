@@ -137,11 +137,35 @@ serve(async (req) => {
       sent_at: new Date().toISOString(),
     });
 
+    // Audit: offer sent
+    await supabase.rpc("log_audit_event", {
+      _action: "booking_request.offer_sent",
+      _entity_type: "booking_request",
+      _entity_id: booking_id,
+      _metadata: {
+        hotel_id: profile.hotel_id,
+        recipient: booking.email,
+        subject,
+        message_id: outboundMessageId,
+      } as never,
+    });
+
     if (booking.status === "nuova") {
       await supabase
         .from("booking_requests")
         .update({ status: "presa_in_carico" })
         .eq("id", booking_id);
+      await supabase.rpc("log_audit_event", {
+        _action: "booking_request.status_changed",
+        _entity_type: "booking_request",
+        _entity_id: booking_id,
+        _metadata: {
+          hotel_id: profile.hotel_id,
+          from: "nuova",
+          to: "presa_in_carico",
+          reason: "offer_sent",
+        } as never,
+      });
     }
 
     return new Response(
