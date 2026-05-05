@@ -105,7 +105,7 @@ export default function SettingsPage() {
     },
   });
 
-  const imapConfigured = !!settings?.imap_host && !!settings?.imap_user && !!settings?.imap_password;
+  const imapConfigured = !!settings?.imap_host && !!settings?.imap_user && !!settings?.has_imap_password;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
