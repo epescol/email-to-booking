@@ -584,7 +584,10 @@ interface ParsedBooking {
 
 async function parseBookingWithAI(
   email: { subject?: string; body?: string; from?: string },
-  apiKey: string
+  apiKey: string,
+  // deno-lint-ignore no-explicit-any
+  supabase?: any,
+  ctx?: { hotel_id?: string | null; message_id?: string | null; x_hotel_request_id?: string | null },
 ): Promise<ParsedBooking | null> {
   const prompt = `Analizza questa email e determina se è una richiesta di prenotazione hotel o una comunicazione correlata a un soggiorno/prenotazione. Se NON è una richiesta di prenotazione (es. newsletter, notifiche di servizi, spam, email commerciali, comunicazioni tecniche), imposta is_booking_request a false.
 
