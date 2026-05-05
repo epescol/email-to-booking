@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, Calculator, ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { Send, Loader2, Calculator, ChevronDown, ChevronUp, Plus, X, AlertCircle } from "lucide-react";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Link } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -212,6 +214,17 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       return data;
     },
   });
+
+  // Check SMTP credentials configured (via secure email-settings function — only flags returned)
+  const { data: emailSettings } = useQuery({
+    queryKey: ["email_settings_smtp_check"],
+    queryFn: async () => {
+      const res = await supabase.functions.invoke("email-settings", { body: { action: "get" } });
+      if (res.error) return null;
+      return res.data as { smtp_host?: string; smtp_user?: string; has_smtp_password?: boolean } | null;
+    },
+  });
+  const smtpConfigured = !!emailSettings?.smtp_host && !!emailSettings?.smtp_user && !!emailSettings?.has_smtp_password;
 
   // Auto-select default template
   const [defaultApplied, setDefaultApplied] = useState(false);
@@ -753,9 +766,20 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           )}
         </div>
 
+        {/* SMTP not configured guidance */}
+        {!smtpConfigured && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Per inviare l'offerta devi prima configurare le credenziali SMTP nelle{" "}
+              <Link to="/settings" className="underline font-medium">Impostazioni</Link>.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Send button */}
         <div className="flex justify-end">
-          <Button onClick={handleSend} disabled={sending} size="sm">
+          <Button onClick={handleSend} disabled={sending || !smtpConfigured} size="sm">
             {sending ? (
               <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Invio...</>
             ) : (
