@@ -180,8 +180,20 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("send-offer error:", e);
+    const errMsg = e instanceof Error ? e.message : "Errore sconosciuto";
+    if (auditClient && auditCtx.bookingId) {
+      try {
+        await auditClient.rpc("log_audit_event_as", {
+          _user_id: auditCtx.userId ?? null,
+          _action: "booking_request.send_failed",
+          _entity_type: "booking_request",
+          _entity_id: auditCtx.bookingId,
+          _metadata: { hotel_id: auditCtx.hotelId, error: errMsg } as never,
+        });
+      } catch { /* noop */ }
+    }
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Errore sconosciuto" }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
