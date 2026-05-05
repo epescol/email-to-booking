@@ -78,8 +78,8 @@ export default function AdminAuditLog() {
 
   const copyJson = async (value: unknown) => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
-      toast.success("JSON copiato negli appunti");
+      await navigator.clipboard.writeText(JSON.stringify(redact(value), null, 2));
+      toast.success("JSON copiato negli appunti (campi sensibili oscurati)");
     } catch {
       toast.error("Impossibile copiare");
     }
