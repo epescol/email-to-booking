@@ -36,6 +36,8 @@ serve(async (req) => {
       });
     }
     const userId = user.id;
+    auditCtx.userId = userId;
+    auditClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { booking_id, subject, body, is_html } = await req.json();
 
