@@ -74,6 +74,35 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const [fetchResult, setFetchResult] = useState<FetchResult | null>(null);
+  const fetchMutation = useMutation({
+    mutationFn: async () => {
+      const res = await supabase.functions.invoke("fetch-emails-imap", { body: {} });
+      if (res.error) {
+        // Try to extract structured error from response
+        const ctx = (res.error as any).context;
+        let msg = res.error.message;
+        try {
+          const body = await ctx?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* noop */ }
+        throw new Error(msg);
+      }
+      return res.data as FetchResult;
+    },
+    onSuccess: (data) => {
+      setFetchResult(data);
+      if (data.success) {
+        toast.success(`Importate ${data.imported} email (${data.fetched} scaricate)`);
+      } else {
+        toast.warning(`Completato con ${data.errors.length} errori`);
+      }
+    },
+    onError: (e: Error) => {
+      setFetchResult({ success: false, fetched: 0, forwarded: 0, imported: 0, errors: [e.message], ran_at: new Date().toISOString() });
+      toast.error(e.message);
+    },
+  });
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
