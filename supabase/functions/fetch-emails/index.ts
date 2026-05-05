@@ -523,7 +523,18 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
   });
 
   if (!response.ok) {
-    console.error("AI parsing error:", response.status, await response.text());
+    const errText = await response.text();
+    console.error("AI parsing error:", response.status, errText);
+    try {
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.rpc("log_audit_event_as", {
+        _user_id: null,
+        _action: "booking_request.ai_parse_failed",
+        _entity_type: "booking_request",
+        _entity_id: null,
+        _metadata: { status: response.status, error: errText.slice(0, 500), subject: email.subject || null },
+      });
+    } catch { /* noop */ }
     return null;
   }
 
