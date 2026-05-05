@@ -764,6 +764,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           </Button>
         </div>
       </CardContent>
+
+      <AlertDialog open={confirmChildrenOpen} onOpenChange={setConfirmChildrenOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Prezzo bambini mancante</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le seguenti camere hanno bambini senza prezzo inserito: {childrenWarningRooms}.
+              <br /><br />
+              Vuoi inviare comunque l'offerta?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmChildrenOpen(false);
+                performSend();
+              }}
+            >
+              Invia comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
