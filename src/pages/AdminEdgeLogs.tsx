@@ -76,6 +76,7 @@ export default function AdminEdgeLogs() {
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(200);
   const [selected, setSelected] = useState<LogRow | null>(null);
+  const [openedBookingId, setOpenedBookingId] = useState<string | null>(null);
 
   const copyJson = async (value: unknown) => {
     try {
