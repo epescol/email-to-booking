@@ -153,6 +153,54 @@ export default function AdminEdgeLogs() {
     return m;
   }, [hotels]);
 
+  // Map x_hotel_request_id -> booking_request id (via booking_messages)
+  const xhridList = useMemo(() => {
+    const s = new Set<string>();
+    (rows ?? []).forEach((r) => r.x_hotel_request_id && s.add(r.x_hotel_request_id));
+    return Array.from(s);
+  }, [rows]);
+
+  const { data: xhridToBooking } = useQuery({
+    queryKey: ["xhrid_to_booking", xhridList.sort().join(",")],
+    enabled: xhridList.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_messages")
+        .select("x_hotel_request_id, request_id")
+        .in("x_hotel_request_id", xhridList);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((r) => {
+        if (r.x_hotel_request_id && r.request_id) m[r.x_hotel_request_id] = r.request_id;
+      });
+      return m;
+    },
+  });
+
+  const openBookingForXhrid = async (xhrid: string | null) => {
+    if (!xhrid) return;
+    const cached = xhridToBooking?.[xhrid];
+    if (cached) {
+      setOpenedBookingId(cached);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("booking_messages")
+      .select("request_id")
+      .eq("x_hotel_request_id", xhrid)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data?.request_id) {
+      toast.error("Nessuna richiesta trovata per questo X-Hotel-Request-ID");
+      return;
+    }
+    setOpenedBookingId(data.request_id);
+  };
+
+  if (openedBookingId) {
+    return <BookingDetail bookingId={openedBookingId} onBack={() => setOpenedBookingId(null)} />;
+  }
+
   return (
     <div className="space-y-6">
       <div>
