@@ -31,8 +31,9 @@ export function RoomPhotoUpload({ photos, onPhotosChange, roomId, hotelId }: Roo
     setUploading(slotIndex);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      if (!hotelId) throw new Error("Hotel non disponibile");
       const prefix = roomId || "new";
-      const path = `${prefix}/${Date.now()}-${slotIndex}.${ext}`;
+      const path = `${hotelId}/${prefix}/${Date.now()}-${slotIndex}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("room-photos")
