@@ -677,18 +677,53 @@ IMPORTANTE: Estrai anche le camere/alloggi richiesti (tipo camera, trattamento, 
         _entity_id: null,
         _metadata: { status: response.status, error: errText.slice(0, 500), subject: email.subject || null },
       });
+      await logEvent(supabase ?? adminClient, {
+        function_name: "fetch-emails:ai",
+        level: "error",
+        event: "ai.http_error",
+        message: `AI gateway error ${response.status}`,
+        hotel_id: ctx?.hotel_id ?? null,
+        message_id: ctx?.message_id ?? null,
+        x_hotel_request_id: ctx?.x_hotel_request_id ?? null,
+        metadata: { status: response.status, error: errText.slice(0, 500), subject: email.subject || null },
+      });
     } catch { /* noop */ }
     return null;
   }
 
   const data = await response.json();
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) return null;
+  if (!toolCall) {
+    if (supabase) {
+      await logEvent(supabase, {
+        function_name: "fetch-emails:ai",
+        level: "warn",
+        event: "ai.no_tool_call",
+        message: "AI response missing tool_call",
+        hotel_id: ctx?.hotel_id ?? null,
+        message_id: ctx?.message_id ?? null,
+        x_hotel_request_id: ctx?.x_hotel_request_id ?? null,
+      });
+    }
+    return null;
+  }
 
   try {
     return JSON.parse(toolCall.function.arguments) as ParsedBooking;
-  } catch {
+  } catch (err) {
     console.error("Failed to parse AI response");
+    if (supabase) {
+      await logEvent(supabase, {
+        function_name: "fetch-emails:ai",
+        level: "error",
+        event: "ai.invalid_json",
+        message: "Failed to parse AI tool_call arguments",
+        hotel_id: ctx?.hotel_id ?? null,
+        message_id: ctx?.message_id ?? null,
+        x_hotel_request_id: ctx?.x_hotel_request_id ?? null,
+        metadata: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
     return null;
   }
 }
