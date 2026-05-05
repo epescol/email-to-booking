@@ -9,6 +9,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let auditCtx: { userId?: string; bookingId?: string; hotelId?: string; recipient?: string } = {};
+  let auditClient: ReturnType<typeof createClient> | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
