@@ -95,6 +95,15 @@ serve(async (req) => {
           console.log(
             `Skipping email ${messageId}: cannot resolve hotel_id (recipient="${recipientField || "unknown"}")`,
           );
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "warn",
+            event: "hotel.unresolved",
+            message: `Cannot resolve hotel for recipient ${recipientField || "unknown"}`,
+            message_id: messageId,
+            x_hotel_request_id: email.x_hotel_request_id || null,
+            metadata: { recipient: recipientField || null, from: email.from || null, subject: email.subject || null },
+          });
           continue;
         }
 
@@ -104,7 +113,18 @@ serve(async (req) => {
           .select("id")
           .eq("email_message_id", messageId)
           .maybeSingle();
-        if (existing) continue;
+        if (existing) {
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "info",
+            event: "email.duplicate",
+            message: `Email already imported (message_id=${messageId})`,
+            hotel_id: hotelId,
+            message_id: messageId,
+            x_hotel_request_id: email.x_hotel_request_id || null,
+          });
+          continue;
+        }
 
         // Filter by sender email if configured for this hotel
         const filterSender = await loadFilter(hotelId);
@@ -112,6 +132,15 @@ serve(async (req) => {
           const senderEmail = extractEmailFromField(email.from);
           if (!senderEmail || senderEmail !== filterSender) {
             console.log(`Skipping email from non-matching sender: ${email.from || "unknown"}`);
+            await logEvent(supabase, {
+              function_name: "fetch-emails",
+              level: "info",
+              event: "email.filtered_sender",
+              message: `Sender ${email.from || "unknown"} does not match filter`,
+              hotel_id: hotelId,
+              message_id: messageId,
+              metadata: { from: email.from || null, expected: filterSender },
+            });
             continue;
           }
         }
@@ -120,12 +149,58 @@ serve(async (req) => {
         const isReply = !!(email.in_reply_to || email.references || email.x_hotel_request_id);
 
         // Parse with AI (includes classification)
-        const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY);
-        if (!parsed) continue;
+        const parsed = await parseBookingWithAI(email, LOVABLE_API_KEY, supabase, {
+          hotel_id: hotelId,
+          message_id: messageId,
+          x_hotel_request_id: email.x_hotel_request_id || null,
+        });
+        if (!parsed) {
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "error",
+            event: "ai.parse_null",
+            message: "AI parsing returned null",
+            hotel_id: hotelId,
+            message_id: messageId,
+            x_hotel_request_id: email.x_hotel_request_id || null,
+          });
+          continue;
+        }
+
+        await logEvent(supabase, {
+          function_name: "fetch-emails",
+          level: "info",
+          event: "ai.parsed",
+          message: `AI parsed (is_booking=${parsed.is_booking_request}, isReply=${isReply})`,
+          hotel_id: hotelId,
+          message_id: messageId,
+          x_hotel_request_id: email.x_hotel_request_id || null,
+          metadata: {
+            is_booking_request: parsed.is_booking_request,
+            is_reply: isReply,
+            extracted: {
+              email: parsed.email || null,
+              first_name: parsed.first_name || null,
+              last_name: parsed.last_name || null,
+              check_in: parsed.check_in || null,
+              check_out: parsed.check_out || null,
+              accommodations_count: parsed.accommodations?.length || 0,
+            },
+          },
+        });
 
         // Skip non-booking emails that are not replies to existing conversations
         if (!parsed.is_booking_request && !isReply) {
           console.log(`Skipping non-booking email: ${email.subject || messageId}`);
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "info",
+            event: "email.skipped_non_booking",
+            message: `Skipped non-booking email: ${email.subject || messageId}`,
+            hotel_id: hotelId,
+            message_id: messageId,
+            metadata: { subject: email.subject || null, from: email.from || null },
+          });
           continue;
         }
 
