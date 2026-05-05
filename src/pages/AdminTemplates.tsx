@@ -121,10 +121,12 @@ export default function AdminTemplates() {
     mutationFn: async (templateId: string | null) => {
       const { error } = await supabase.from("hotels").update({ default_template_id: templateId } as any).eq("id", selectedHotelId);
       if (error) throw error;
+      return templateId;
     },
-    onSuccess: () => {
+    onSuccess: (templateId) => {
       toast.success("Template predefinito aggiornato");
       queryClient.invalidateQueries({ queryKey: ["admin-hotels-templates"] });
+      logAudit("template.set_default", "hotel", selectedHotelId, { template_id: templateId });
     },
     onError: (e) => toast.error(e.message),
   });
