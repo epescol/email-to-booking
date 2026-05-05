@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 
 interface FetchResult {
   success: boolean;
@@ -104,6 +105,8 @@ export default function SettingsPage() {
     },
   });
 
+  const imapConfigured = !!settings?.imap_host && !!settings?.imap_user && !!settings?.imap_password;
+
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
       <div>
@@ -124,7 +127,7 @@ export default function SettingsPage() {
           <Button
             type="button"
             onClick={() => fetchMutation.mutate()}
-            disabled={fetchMutation.isPending}
+            disabled={!imapConfigured || fetchMutation.isPending}
           >
             {fetchMutation.isPending ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Operazione in corso...</>
@@ -132,6 +135,17 @@ export default function SettingsPage() {
               <><Download className="h-4 w-4 mr-2" /> Scarica email ora</>
             )}
           </Button>
+
+          {!imapConfigured && (
+            <Alert variant="default">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Configurazione necessaria</AlertTitle>
+              <AlertDescription>
+                Per scaricare le email devi prima configurare le credenziali IMAP nella sezione
+                "Server IMAP (Ricezione)" qui sotto, poi salva le impostazioni.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {fetchResult && (
             <div className="rounded-md border p-3 text-sm space-y-2">
