@@ -766,9 +766,20 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           )}
         </div>
 
+        {/* SMTP not configured guidance */}
+        {!smtpConfigured && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Per inviare l'offerta devi prima configurare le credenziali SMTP nelle{" "}
+              <Link to="/settings" className="underline font-medium">Impostazioni</Link>.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Send button */}
         <div className="flex justify-end">
-          <Button onClick={handleSend} disabled={sending} size="sm">
+          <Button onClick={handleSend} disabled={sending || !smtpConfigured} size="sm">
             {sending ? (
               <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Invio...</>
             ) : (
