@@ -281,6 +281,23 @@ serve(async (req) => {
           sent_at: email.date || new Date().toISOString(),
         });
 
+        // Audit: email imported via webhook
+        try {
+          await supabase.rpc("log_audit_event_as", {
+            _user_id: null,
+            _action: "booking_request.email_imported",
+            _entity_type: "booking_request",
+            _entity_id: requestId,
+            _metadata: {
+              hotel_id: hotelId,
+              message_id: messageId,
+              from: email.from || null,
+              subject: email.subject || null,
+              is_reply: isReply,
+            },
+          });
+        } catch { /* noop */ }
+
         imported++;
       }
 
