@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Copy, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 type AuditRow = {
@@ -71,6 +74,16 @@ export default function AdminAuditLog() {
   const [userId, setUserId] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(200);
+  const [selected, setSelected] = useState<AuditRow | null>(null);
+
+  const copyJson = async (value: unknown) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
+      toast.success("JSON copiato negli appunti");
+    } catch {
+      toast.error("Impossibile copiare");
+    }
+  };
 
   const { data: hotels } = useQuery({
     queryKey: ["audit_hotels"],
@@ -259,6 +272,7 @@ export default function AdminAuditLog() {
                     <TableHead>Utente</TableHead>
                     <TableHead>Hotel</TableHead>
                     <TableHead>Dettagli</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -266,7 +280,11 @@ export default function AdminAuditLog() {
                     const p = row.user_id ? profilesByUser.get(row.user_id) : null;
                     const hotel = (hotels ?? []).find((h) => h.id === p?.hotel_id);
                     return (
-                      <TableRow key={row.id}>
+                      <TableRow
+                        key={row.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelected(row)}
+                      >
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {format(new Date(row.created_at), "dd/MM/yyyy HH:mm:ss")}
                         </TableCell>
@@ -289,12 +307,24 @@ export default function AdminAuditLog() {
                         <TableCell className="text-xs">{hotel?.name || "—"}</TableCell>
                         <TableCell>
                           {row.metadata && Object.keys(row.metadata).length > 0 ? (
-                            <pre className="text-[10px] bg-muted/40 rounded px-2 py-1 max-w-md overflow-x-auto">
+                            <pre className="text-[10px] bg-muted/40 rounded px-2 py-1 max-w-md overflow-x-auto truncate">
                               {JSON.stringify(row.metadata, null, 0)}
                             </pre>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(row);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -305,6 +335,82 @@ export default function AdminAuditLog() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <Badge variant={selected ? actionVariant(selected.action) : "default"} className="font-mono text-[10px]">
+                {selected?.action}
+              </Badge>
+              <span className="text-sm font-normal text-muted-foreground">
+                {selected && format(new Date(selected.created_at), "dd/MM/yyyy HH:mm:ss")}
+              </span>
+            </DialogTitle>
+            <DialogDescription>Dettagli evento di audit</DialogDescription>
+          </DialogHeader>
+
+          {selected && (() => {
+            const p = selected.user_id ? profilesByUser.get(selected.user_id) : null;
+            const hotel = (hotels ?? []).find((h) => h.id === p?.hotel_id);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Event ID</Label>
+                    <div className="font-mono text-xs break-all">{selected.id}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Entità</Label>
+                    <div>{selected.entity_type}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Entity ID</Label>
+                    <div className="font-mono text-xs break-all">{selected.entity_id || "—"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Utente</Label>
+                    <div>{p?.display_name || p?.email || selected.user_id || "—"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Hotel</Label>
+                    <div>{hotel?.name || "—"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">User ID</Label>
+                    <div className="font-mono text-xs break-all">{selected.user_id || "—"}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm font-medium">Metadata</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyJson(selected.metadata ?? {})}
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      Copia JSON
+                    </Button>
+                  </div>
+                  <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto max-h-[40vh] overflow-y-auto">
+{JSON.stringify(selected.metadata ?? {}, null, 2)}
+                  </pre>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => copyJson(selected)}>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copia evento completo
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
