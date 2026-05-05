@@ -235,6 +235,48 @@ export type Database = {
           },
         ]
       }
+      edge_function_logs: {
+        Row: {
+          created_at: string
+          event: string
+          function_name: string
+          hotel_id: string | null
+          id: string
+          level: string
+          message: string | null
+          message_id: string | null
+          metadata: Json | null
+          request_id: string | null
+          x_hotel_request_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          function_name: string
+          hotel_id?: string | null
+          id?: string
+          level?: string
+          message?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          request_id?: string | null
+          x_hotel_request_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          function_name?: string
+          hotel_id?: string | null
+          id?: string
+          level?: string
+          message?: string | null
+          message_id?: string | null
+          metadata?: Json | null
+          request_id?: string | null
+          x_hotel_request_id?: string | null
+        }
+        Relationships: []
+      }
       hotel_email_settings: {
         Row: {
           created_at: string
