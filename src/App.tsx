@@ -14,6 +14,7 @@ import AdminTemplates from "./pages/AdminTemplates";
 import AdminLanguages from "./pages/AdminLanguages";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsers from "./pages/AdminUsers";
+import AdminAuditLog from "./pages/AdminAuditLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ function AuthGate() {
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/templates" element={<AdminTemplates />} />
             <Route path="/admin/languages" element={<AdminLanguages />} />
+            <Route path="/admin/audit" element={<AdminAuditLog />} />
             <Route path="*" element={<Navigate to="/admin/users" replace />} />
           </>
         ) : (
