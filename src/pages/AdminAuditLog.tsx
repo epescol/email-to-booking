@@ -68,6 +68,24 @@ function actionVariant(action: string): "default" | "secondary" | "destructive" 
   return "default";
 }
 
+const SENSITIVE_KEY_RE = /(password|secret|token|api[_-]?key|authorization|cookie|x-webhook-secret|webhook_secret|service[_-]?role|encryption[_-]?key|private[_-]?key)/i;
+
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (SENSITIVE_KEY_RE.test(k)) {
+        out[k] = "[REDACTED]";
+      } else {
+        out[k] = redact(v);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
 export default function AdminAuditLog() {
   const [category, setCategory] = useState<string>("all");
   const [hotelId, setHotelId] = useState<string>("all");
