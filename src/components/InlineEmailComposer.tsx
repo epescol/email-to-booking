@@ -451,10 +451,15 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     const roomsWithChildrenNoPrice = selectedRooms.filter(sr => sr.childrenCount > 0 && !sr.childrenPrice);
     if (roomsWithChildrenNoPrice.length > 0) {
       const roomNames = roomsWithChildrenNoPrice.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
-      const confirmed = window.confirm(`Attenzione: le seguenti camere hanno bambini senza prezzo inserito: ${roomNames}.\n\nVuoi inviare comunque l'offerta?`);
-      if (!confirmed) return;
+      setChildrenWarningRooms(roomNames);
+      setConfirmChildrenOpen(true);
+      return;
     }
 
+    await performSend();
+  };
+
+  const performSend = async () => {
     setSending(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
