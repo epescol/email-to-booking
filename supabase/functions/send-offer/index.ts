@@ -9,6 +9,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let auditCtx: { userId?: string; bookingId?: string; hotelId?: string; recipient?: string } = {};
+  let auditClient: ReturnType<typeof createClient> | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -33,8 +36,11 @@ serve(async (req) => {
       });
     }
     const userId = user.id;
+    auditCtx.userId = userId;
+    auditClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { booking_id, subject, body, is_html } = await req.json();
+    auditCtx.bookingId = booking_id;
 
     if (!booking_id || !subject || !body) {
       return new Response(
@@ -55,7 +61,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
+    auditCtx.hotelId = profile.hotel_id;
     const { data: booking } = await supabase
       .from("booking_requests")
       .select("*")
@@ -174,8 +180,20 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("send-offer error:", e);
+    const errMsg = e instanceof Error ? e.message : "Errore sconosciuto";
+    if (auditClient && auditCtx.bookingId) {
+      try {
+        await auditClient.rpc("log_audit_event_as", {
+          _user_id: auditCtx.userId ?? null,
+          _action: "booking_request.send_failed",
+          _entity_type: "booking_request",
+          _entity_id: auditCtx.bookingId,
+          _metadata: { hotel_id: auditCtx.hotelId, error: errMsg } as never,
+        });
+      } catch { /* noop */ }
+    }
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Errore sconosciuto" }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Hotel } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/audit";
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -19,6 +21,20 @@ export default function Login() {
     const { error } = await signIn(email, password);
     if (error) {
       toast.error(error.message);
+    } else {
+      // Log admin login (best-effort, only if user has admin role)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: isAdmin } = await supabase.rpc("has_role", {
+            _user_id: user.id,
+            _role: "admin",
+          });
+          if (isAdmin) {
+            await logAudit("auth.admin_login", "auth_user", user.id, { email: user.email });
+          }
+        }
+      } catch { /* noop */ }
     }
     setLoading(false);
   };

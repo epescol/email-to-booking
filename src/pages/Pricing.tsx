@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import TreatmentsManager, { useTreatments } from "@/components/TreatmentsManager";
 import { ConfirmDelete, useConfirmDelete } from "@/components/ConfirmDelete";
+import { logAudit } from "@/lib/audit";
 
 type PricingMode = "per_room" | "per_occupancy";
 
@@ -77,14 +78,18 @@ export default function Pricing() {
   const createPeriod = useMutation({
     mutationFn: async () => {
       const name = `${periodForm.start_date} - ${periodForm.end_date}`;
-      const { error } = await supabase.from("price_periods").insert({ name, start_date: periodForm.start_date, end_date: periodForm.end_date, hotel_id: profile.hotel_id });
+      const { data, error } = await supabase.from("price_periods").insert({ name, start_date: periodForm.start_date, end_date: periodForm.end_date, hotel_id: profile.hotel_id }).select().single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Periodo creato");
       queryClient.invalidateQueries({ queryKey: ["price_periods"] });
       setDialogOpen(false);
       setPeriodForm({ start_date: "", end_date: "" });
+      logAudit("pricing.period_created", "price_period", data?.id ?? null, {
+        hotel_id: profile?.hotel_id, name: data?.name, start_date: data?.start_date, end_date: data?.end_date,
+      });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -93,11 +98,13 @@ export default function Pricing() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("price_periods").delete().eq("id", id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       toast.success("Periodo eliminato");
       queryClient.invalidateQueries({ queryKey: ["price_periods"] });
       queryClient.invalidateQueries({ queryKey: ["room_prices"] });
+      logAudit("pricing.period_deleted", "price_period", id, { hotel_id: profile?.hotel_id });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -118,14 +125,27 @@ export default function Pricing() {
       if (existing) {
         const { error } = await supabase.from("room_prices").update({ price_per_night: price }).eq("id", existing.id);
         if (error) throw error;
+        return { id: existing.id, roomId, periodId, price, occupancy, treatmentId, op: "update" as const };
       } else {
-        const { error } = await supabase.from("room_prices").insert({
+        const { data, error } = await supabase.from("room_prices").insert({
           room_id: roomId, period_id: periodId, price_per_night: price, occupancy, treatment_id: treatmentId,
-        });
+        }).select().single();
         if (error) throw error;
+        return { id: data?.id ?? null, roomId, periodId, price, occupancy, treatmentId, op: "insert" as const };
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["room_prices"] }),
+    onSuccess: (info) => {
+      queryClient.invalidateQueries({ queryKey: ["room_prices"] });
+      logAudit("pricing.price_updated", "room_price", info.id, {
+        hotel_id: profile?.hotel_id,
+        room_id: info.roomId,
+        period_id: info.periodId,
+        treatment_id: info.treatmentId,
+        occupancy: info.occupancy,
+        price: info.price,
+        op: info.op,
+      });
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -137,11 +157,15 @@ export default function Pricing() {
       if (deleteError) throw deleteError;
       const { error } = await supabase.from("hotels").update({ pricing_mode: newMode }).eq("id", profile.hotel_id);
       if (error) throw error;
+      return newMode;
     },
-    onSuccess: () => {
+    onSuccess: (newMode) => {
       toast.success("Modalità prezzi aggiornata. Tutti i prezzi sono stati azzerati.");
       queryClient.invalidateQueries({ queryKey: ["hotel_pricing_mode"] });
       queryClient.invalidateQueries({ queryKey: ["room_prices"] });
+      logAudit("pricing.mode_changed", "hotel", profile?.hotel_id ?? null, {
+        hotel_id: profile?.hotel_id, from: pricingMode, to: newMode,
+      });
     },
     onError: (e) => toast.error(e.message),
   });
