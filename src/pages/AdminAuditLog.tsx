@@ -74,6 +74,16 @@ export default function AdminAuditLog() {
   const [userId, setUserId] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(200);
+  const [selected, setSelected] = useState<AuditRow | null>(null);
+
+  const copyJson = async (value: unknown) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
+      toast.success("JSON copiato negli appunti");
+    } catch {
+      toast.error("Impossibile copiare");
+    }
+  };
 
   const { data: hotels } = useQuery({
     queryKey: ["audit_hotels"],
