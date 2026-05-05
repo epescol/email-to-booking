@@ -361,6 +361,35 @@ export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Audit Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!auditLogs?.length ? (
+                <p className="text-sm text-muted-foreground">Nessun evento registrato</p>
+              ) : (
+                <div className="space-y-2">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between gap-3 p-2 rounded-md bg-muted/40 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{log.action}</p>
+                        {log.metadata && Object.keys(log.metadata as object).length > 0 && (
+                          <pre className="mt-1 text-[10px] text-muted-foreground whitespace-pre-wrap break-all font-mono">
+                            {JSON.stringify(log.metadata, null, 0)}
+                          </pre>
+                        )}
+                      </div>
+                      <span className="text-muted-foreground shrink-0">
+                        {format(new Date(log.created_at), "dd/MM/yy HH:mm")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
