@@ -141,4 +141,5 @@ Deno.test({
   await admin.from("booking_accommodations").delete().eq("request_id", requestId);
   await admin.from("booking_requests").delete().eq("id", requestId);
   await admin.from("hotels").delete().eq("id", hotelId);
+  },
 });
