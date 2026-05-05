@@ -25,7 +25,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const providedSecret = req.headers.get("x-webhook-secret") || body.webhook_secret;
+      const providedSecret = req.headers.get("x-webhook-secret");
       if (providedSecret !== webhookSecret) {
         return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
           status: 401,
