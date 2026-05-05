@@ -10,7 +10,16 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { Mail, Server, Shield } from "lucide-react";
+import { Mail, Server, Shield, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+
+interface FetchResult {
+  success: boolean;
+  fetched: number;
+  forwarded: number;
+  imported: number;
+  errors: string[];
+  ran_at: string;
+}
 
 
 async function callEmailSettings(action: string, payload: Record<string, unknown> = {}) {
@@ -65,6 +74,35 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const [fetchResult, setFetchResult] = useState<FetchResult | null>(null);
+  const fetchMutation = useMutation({
+    mutationFn: async () => {
+      const res = await supabase.functions.invoke("fetch-emails-imap", { body: {} });
+      if (res.error) {
+        // Try to extract structured error from response
+        const ctx = (res.error as any).context;
+        let msg = res.error.message;
+        try {
+          const body = await ctx?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* noop */ }
+        throw new Error(msg);
+      }
+      return res.data as FetchResult;
+    },
+    onSuccess: (data) => {
+      setFetchResult(data);
+      if (data.success) {
+        toast.success(`Importate ${data.imported} email (${data.fetched} scaricate)`);
+      } else {
+        toast.warning(`Completato con ${data.errors.length} errori`);
+      }
+    },
+    onError: (e: Error) => {
+      setFetchResult({ success: false, fetched: 0, forwarded: 0, imported: 0, errors: [e.message], ran_at: new Date().toISOString() });
+      toast.error(e.message);
+    },
+  });
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
@@ -73,6 +111,54 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">Configura le credenziali email e il webhook per il tuo hotel</p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Download className="h-4 w-4" /> Scarica Email
+          </CardTitle>
+          <CardDescription>
+            Avvia manualmente il fetch IMAP per importare le nuove email del tuo hotel
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            type="button"
+            onClick={() => fetchMutation.mutate()}
+            disabled={fetchMutation.isPending}
+          >
+            {fetchMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Operazione in corso...</>
+            ) : (
+              <><Download className="h-4 w-4 mr-2" /> Scarica email ora</>
+            )}
+          </Button>
+
+          {fetchResult && (
+            <div className="rounded-md border p-3 text-sm space-y-2">
+              <div className="flex items-center gap-2 font-medium">
+                {fetchResult.success ? (
+                  <><CheckCircle2 className="h-4 w-4 text-green-600" /> Operazione completata</>
+                ) : (
+                  <><AlertCircle className="h-4 w-4 text-destructive" /> Completata con errori</>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                <div><span className="font-medium text-foreground">{fetchResult.fetched}</span> scaricate</div>
+                <div><span className="font-medium text-foreground">{fetchResult.forwarded}</span> inoltrate</div>
+                <div><span className="font-medium text-foreground">{fetchResult.imported}</span> importate</div>
+              </div>
+              {fetchResult.errors.length > 0 && (
+                <ul className="list-disc list-inside text-destructive text-xs space-y-1 pt-2 border-t">
+                  {fetchResult.errors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              )}
+              <div className="text-xs text-muted-foreground pt-1">
+                Eseguito: {new Date(fetchResult.ran_at).toLocaleString("it-IT")}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-6">
         <Card>
