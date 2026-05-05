@@ -40,6 +40,7 @@ serve(async (req) => {
     auditClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { booking_id, subject, body, is_html } = await req.json();
+    auditCtx.bookingId = booking_id;
 
     if (!booking_id || !subject || !body) {
       return new Response(
