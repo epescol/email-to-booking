@@ -449,6 +449,19 @@ serve(async (req) => {
     }
   } catch (e) {
     console.error("fetch-emails error:", e);
+    try {
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      await logEvent(adminClient, {
+        function_name: "fetch-emails",
+        level: "error",
+        event: "function.error",
+        message: e instanceof Error ? e.message : "Errore sconosciuto",
+        metadata: { stack: e instanceof Error ? e.stack?.slice(0, 1000) : null },
+      });
+    } catch { /* noop */ }
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Errore sconosciuto" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -457,6 +470,37 @@ serve(async (req) => {
 });
 
 // ---- Helpers ----
+
+interface LogEntry {
+  function_name: string;
+  level: "info" | "warn" | "error";
+  event: string;
+  message?: string | null;
+  hotel_id?: string | null;
+  x_hotel_request_id?: string | null;
+  message_id?: string | null;
+  request_id?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+// deno-lint-ignore no-explicit-any
+async function logEvent(supabase: any, entry: LogEntry): Promise<void> {
+  try {
+    await supabase.from("edge_function_logs").insert({
+      function_name: entry.function_name,
+      level: entry.level,
+      event: entry.event,
+      message: entry.message ?? null,
+      hotel_id: entry.hotel_id ?? null,
+      x_hotel_request_id: entry.x_hotel_request_id ?? null,
+      message_id: entry.message_id ?? null,
+      request_id: entry.request_id ?? null,
+      metadata: entry.metadata ?? null,
+    });
+  } catch (err) {
+    console.error("logEvent failed:", err);
+  }
+}
 
 function extractEmailFromField(from: string | undefined): string | null {
   if (!from) return null;
