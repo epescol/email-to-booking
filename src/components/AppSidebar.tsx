@@ -21,7 +21,7 @@ const mainItems = [
   { title: "Richieste", url: "/", icon: LayoutDashboard },
   { title: "Camere", url: "/rooms", icon: BedDouble },
   { title: "Listino Prezzi", url: "/pricing", icon: Euro },
-  { title: "Impostazioni", url: "/settings", icon: Settings },
+  
 ];
 
 const adminItems = [
