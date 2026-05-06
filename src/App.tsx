@@ -12,7 +12,7 @@ import Rooms from "./pages/Rooms";
 import Pricing from "./pages/Pricing";
 import AdminTemplates from "./pages/AdminTemplates";
 import AdminLanguages from "./pages/AdminLanguages";
-import SettingsPage from "./pages/SettingsPage";
+
 import AdminUsers from "./pages/AdminUsers";
 import AdminAuditLog from "./pages/AdminAuditLog";
 import AdminEdgeLogs from "./pages/AdminEdgeLogs";
