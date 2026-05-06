@@ -11,7 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Plus, Pencil, Trash2, Loader2, ShieldCheck, Hotel } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, ShieldCheck, Hotel, Mail } from "lucide-react";
+import HotelEmailSettingsDialog from "@/components/HotelEmailSettingsDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useProfile";
