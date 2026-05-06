@@ -189,7 +189,7 @@ export default function AdminUsers() {
 
   const isFormValid = email && (!editingUser ? password : true) && (dialogRole === "admin" || selectedLanguages.length > 0);
 
-  const renderUserTable = (userList: UserProfile[], emptyMessage: string) => (
+  const renderUserTable = (userList: UserProfile[], emptyMessage: string, showEmailAction = false) => (
     <Card>
       <CardContent className="p-0">
         {isLoading ? (
@@ -207,7 +207,7 @@ export default function AdminUsers() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="w-[100px]">Azioni</TableHead>
+                <TableHead className="w-[140px]">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -217,6 +217,16 @@ export default function AdminUsers() {
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      {showEmailAction && u.hotel_id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Impostazioni email"
+                          onClick={() => setEmailSettingsHotel({ id: u.hotel_id!, name: u.display_name || u.email || "" })}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
