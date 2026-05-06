@@ -61,7 +61,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
-  const queryClient = useQueryClient();
+  
   const location = useLocation();
 
   useEffect(() => {
