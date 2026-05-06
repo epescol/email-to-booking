@@ -216,6 +216,21 @@ interface SmtpConfig {
   messageId: string;
 }
 
+const SMTP_CONNECT_TIMEOUT_MS = 15000;
+const SMTP_READ_TIMEOUT_MS = 15000;
+
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms) as unknown as number;
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -223,9 +238,17 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
   let conn: Deno.TlsConn | Deno.TcpConn;
 
   if (config.port === 465) {
-    conn = await Deno.connectTls({ hostname: config.host, port: config.port });
+    conn = await withTimeout(
+      Deno.connectTls({ hostname: config.host, port: config.port }),
+      SMTP_CONNECT_TIMEOUT_MS,
+      "SMTP TLS connect",
+    );
   } else {
-    conn = await Deno.connect({ hostname: config.host, port: config.port });
+    conn = await withTimeout(
+      Deno.connect({ hostname: config.host, port: config.port }),
+      SMTP_CONNECT_TIMEOUT_MS,
+      "SMTP connect",
+    );
   }
 
   async function readResp(): Promise<string> {
@@ -235,7 +258,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
     let attempts = 0;
     while (attempts < maxAttempts) {
       attempts++;
-      const n = await conn.read(buf);
+      const n = await withTimeout(conn.read(buf), SMTP_READ_TIMEOUT_MS, "SMTP read");
       if (n === null) break;
       result += decoder.decode(buf.subarray(0, n));
       const lines = result.split("\r\n").filter(Boolean);
@@ -247,7 +270,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
   }
 
   async function sendCmd(cmd: string): Promise<string> {
-    await conn.write(encoder.encode(cmd + "\r\n"));
+    await withTimeout(conn.write(encoder.encode(cmd + "\r\n")), SMTP_READ_TIMEOUT_MS, "SMTP write");
     return await readResp();
   }
 
