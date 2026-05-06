@@ -96,7 +96,7 @@ export default function Rooms() {
       if (roomId) {
         await supabase.from("room_translations" as any).delete().eq("room_id", roomId);
         const rows = Object.entries(translations)
-          .filter(([_, name]) => name.trim())
+          .filter(([, name]) => name.trim())
           .map(([code, name]) => ({ room_id: roomId, language_code: code, name: name.trim() }));
         if (rows.length > 0) {
           await supabase.from("room_translations" as any).insert(rows);
