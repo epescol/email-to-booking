@@ -272,7 +272,7 @@ export default function AdminUsers() {
         </div>
 
         <TabsContent value="hotels" className="mt-4">
-          {renderUserTable(hotelUsers, "Nessun hotel trovato")}
+          {renderUserTable(hotelUsers, "Nessun hotel trovato", true)}
         </TabsContent>
 
         <TabsContent value="admins" className="mt-4">
