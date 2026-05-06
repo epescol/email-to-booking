@@ -75,13 +75,10 @@ Deno.serve(async (req) => {
       }
 
       // SECURITY: never return decrypted passwords to the client.
-      // Only expose presence flags so the UI can show "•••• (saved)".
-      const { imap_password, smtp_password, ...safe } = settings as Record<string, unknown>;
+      const { smtp_password, ...safe } = settings as Record<string, unknown>;
       const result = {
         ...safe,
-        imap_password: "",
         smtp_password: "",
-        has_imap_password: Boolean(imap_password),
         has_smtp_password: Boolean(smtp_password),
       };
 
@@ -95,7 +92,7 @@ Deno.serve(async (req) => {
 
       // Encrypt passwords before saving. If the field is empty/missing,
       // do NOT overwrite the existing stored (encrypted) value.
-      const passwordFields = ["imap_password", "smtp_password"] as const;
+      const passwordFields = ["smtp_password"] as const;
       for (const field of passwordFields) {
         const value = formData[field];
         if (typeof value === "string" && value.length > 0) {

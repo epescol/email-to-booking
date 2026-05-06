@@ -283,11 +283,6 @@ export type Database = {
           filter_sender_email: string | null
           hotel_id: string
           id: string
-          imap_host: string | null
-          imap_password: string | null
-          imap_port: number | null
-          imap_use_ssl: boolean | null
-          imap_user: string | null
           smtp_host: string | null
           smtp_password: string | null
           smtp_port: number | null
@@ -300,11 +295,6 @@ export type Database = {
           filter_sender_email?: string | null
           hotel_id: string
           id?: string
-          imap_host?: string | null
-          imap_password?: string | null
-          imap_port?: number | null
-          imap_use_ssl?: boolean | null
-          imap_user?: string | null
           smtp_host?: string | null
           smtp_password?: string | null
           smtp_port?: number | null
@@ -317,11 +307,6 @@ export type Database = {
           filter_sender_email?: string | null
           hotel_id?: string
           id?: string
-          imap_host?: string | null
-          imap_password?: string | null
-          imap_port?: number | null
-          imap_use_ssl?: boolean | null
-          imap_user?: string | null
           smtp_host?: string | null
           smtp_password?: string | null
           smtp_port?: number | null
