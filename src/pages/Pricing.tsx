@@ -363,7 +363,7 @@ function PerPersonPriceTable({ rooms, periods, treatments, getPrice, updatePrice
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, idx) => (
+            {rows.map((row) => (
               <TableRow key={`${row.room.id}-${row.treatment?.id ?? 'none'}`} className={row.isFirstOfRoom ? "border-t-2 border-border" : ""}>
                 {row.isFirstOfRoom && (
                   <TableCell className="font-medium sticky left-0 bg-card z-10 align-middle" rowSpan={row.roomRowSpan}>
