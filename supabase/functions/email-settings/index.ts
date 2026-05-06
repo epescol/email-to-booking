@@ -54,16 +54,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECURITY: only admins can read or modify email settings (IMAP/SMTP credentials)
-    const { data: isAdmin, error: roleErr } = await supabaseAdmin.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-    if (roleErr || !isAdmin) {
-      return new Response(JSON.stringify({ error: "Non autorizzato" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Access scoped to the user's own hotel via profile.hotel_id (admins also pass naturally if they have a profile).
+    // Email credentials are never returned in plaintext (see "get" branch).
 
     const { action, ...payload } = await req.json();
 
