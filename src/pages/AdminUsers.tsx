@@ -48,6 +48,7 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [dialogRole, setDialogRole] = useState<"user" | "admin">("user");
+  const [emailSettingsHotel, setEmailSettingsHotel] = useState<{ id: string; name: string } | null>(null);
 
   // Form fields
   const [email, setEmail] = useState("");
