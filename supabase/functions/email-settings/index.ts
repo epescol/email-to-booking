@@ -75,13 +75,10 @@ Deno.serve(async (req) => {
       }
 
       // SECURITY: never return decrypted passwords to the client.
-      // Only expose presence flags so the UI can show "•••• (saved)".
-      const { imap_password, smtp_password, ...safe } = settings as Record<string, unknown>;
+      const { smtp_password, ...safe } = settings as Record<string, unknown>;
       const result = {
         ...safe,
-        imap_password: "",
         smtp_password: "",
-        has_imap_password: Boolean(imap_password),
         has_smtp_password: Boolean(smtp_password),
       };
 
