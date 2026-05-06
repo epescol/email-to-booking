@@ -12,11 +12,10 @@ import Rooms from "./pages/Rooms";
 import Pricing from "./pages/Pricing";
 import AdminTemplates from "./pages/AdminTemplates";
 import AdminLanguages from "./pages/AdminLanguages";
-import SettingsPage from "./pages/SettingsPage";
+
 import AdminUsers from "./pages/AdminUsers";
 import AdminAuditLog from "./pages/AdminAuditLog";
 import AdminEdgeLogs from "./pages/AdminEdgeLogs";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -52,7 +51,7 @@ function AuthGate() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/pricing" element={<Pricing />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

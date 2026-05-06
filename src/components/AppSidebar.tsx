@@ -1,4 +1,4 @@
-import { LayoutDashboard, BedDouble, Euro, Settings, Users, LogOut, Mail, Languages, ScrollText, Activity } from "lucide-react";
+import { LayoutDashboard, BedDouble, Euro, Users, LogOut, Mail, Languages, ScrollText, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +21,7 @@ const mainItems = [
   { title: "Richieste", url: "/", icon: LayoutDashboard },
   { title: "Camere", url: "/rooms", icon: BedDouble },
   { title: "Listino Prezzi", url: "/pricing", icon: Euro },
-  { title: "Impostazioni", url: "/settings", icon: Settings },
+  
 ];
 
 const adminItems = [
