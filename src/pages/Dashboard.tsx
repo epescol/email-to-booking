@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,7 +61,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
-  const queryClient = useQueryClient();
+  
   const location = useLocation();
 
   useEffect(() => {

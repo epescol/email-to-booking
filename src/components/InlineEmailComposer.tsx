@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, Calculator, ChevronDown, ChevronUp, Plus, X, AlertCircle } from "lucide-react";
+import { Send, Loader2, Calculator, ChevronDown, ChevronUp, X, AlertCircle } from "lucide-react";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
@@ -569,7 +569,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
             {selectedRooms.map((sr) => {
               const room = rooms?.find(r => r.id === sr.roomId);
               const calc = roomCalculations[sr.roomId];
-              const effectivePrice = sr.manualPrice || (calc ? calc.total.toFixed(2) : "");
+              
 
               return (
                 <div key={sr.roomId} className="rounded-md border border-border bg-muted/30 p-3 space-y-2">

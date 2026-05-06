@@ -80,7 +80,7 @@ function formatAlternativeDates(text: string): string {
 
 export function BookingDetail({ bookingId, onBack }: BookingDetailProps) {
   const queryClient = useQueryClient();
-  const { deleteId, requestDelete, cancelDelete, isOpen } = useConfirmDelete();
+  const { requestDelete, cancelDelete, isOpen } = useConfirmDelete();
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
 
   const deleteMutation = useMutation({

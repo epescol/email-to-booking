@@ -15,7 +15,6 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 
 const mainItems = [
   { title: "Richieste", url: "/", icon: LayoutDashboard },

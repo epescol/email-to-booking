@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, BedDouble, Pencil, Trash2, Search, ArrowRight } from "lucide-react";
+import { Plus, BedDouble, Trash2, Search, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -96,7 +96,7 @@ export default function Rooms() {
       if (roomId) {
         await supabase.from("room_translations" as any).delete().eq("room_id", roomId);
         const rows = Object.entries(translations)
-          .filter(([_, name]) => name.trim())
+          .filter(([, name]) => name.trim())
           .map(([code, name]) => ({ room_id: roomId, language_code: code, name: name.trim() }));
         if (rows.length > 0) {
           await supabase.from("room_translations" as any).insert(rows);

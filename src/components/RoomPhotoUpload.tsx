@@ -16,7 +16,7 @@ export function RoomPhotoUpload({ photos, onPhotosChange, roomId, hotelId }: Roo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
 
-  const currentPhotos = photos.filter(Boolean) as string[];
+  
 
   const handleUpload = async (file: File, slotIndex: number) => {
     if (!file.type.startsWith("image/")) {
