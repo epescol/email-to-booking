@@ -569,7 +569,7 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
             {selectedRooms.map((sr) => {
               const room = rooms?.find(r => r.id === sr.roomId);
               const calc = roomCalculations[sr.roomId];
-              const effectivePrice = sr.manualPrice || (calc ? calc.total.toFixed(2) : "");
+              
 
               return (
                 <div key={sr.roomId} className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
