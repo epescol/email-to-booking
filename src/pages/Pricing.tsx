@@ -189,7 +189,7 @@ export default function Pricing() {
     )?.price_per_night;
   };
 
-  const hasTreatments = enabledTreatments.length > 0;
+  
 
   return (
     <div className="space-y-6 animate-fade-in">
