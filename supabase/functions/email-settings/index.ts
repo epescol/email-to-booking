@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       const { data: existing } = await supabaseAdmin
         .from("hotel_email_settings")
         .select("id")
-        .eq("hotel_id", profile.hotel_id)
+        .eq("hotel_id", hotelId)
         .maybeSingle();
 
       if (existing) {
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       } else {
         const { error } = await supabaseAdmin
           .from("hotel_email_settings")
-          .insert({ ...formData, hotel_id: profile.hotel_id });
+          .insert({ ...formData, hotel_id: hotelId });
         if (error) throw error;
       }
 
