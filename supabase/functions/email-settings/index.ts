@@ -41,29 +41,31 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get user's hotel_id
-    const { data: profile } = await callerClient
-      .from("profiles")
-      .select("hotel_id")
-      .eq("user_id", userId)
-      .single();
-
-    if (!profile?.hotel_id) {
-      return new Response(JSON.stringify({ error: "Nessun hotel associato" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Admin-only: only global admins can read/write SMTP/IMAP credentials.
+    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Non autorizzato" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Access scoped to the user's own hotel via profile.hotel_id (admins also pass naturally if they have a profile).
-    // Email credentials are never returned in plaintext (see "get" branch).
+    const { action, hotel_id: payloadHotelId, ...payload } = await req.json();
 
-    const { action, ...payload } = await req.json();
+    if (!payloadHotelId || typeof payloadHotelId !== "string") {
+      return new Response(JSON.stringify({ error: "hotel_id richiesto" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const hotelId = payloadHotelId;
 
     if (action === "get") {
       const { data: settings } = await supabaseAdmin
         .from("hotel_email_settings")
         .select("*")
-        .eq("hotel_id", profile.hotel_id)
+        .eq("hotel_id", hotelId)
         .maybeSingle();
 
       if (!settings) {
