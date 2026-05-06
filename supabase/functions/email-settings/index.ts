@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 
       // Encrypt passwords before saving. If the field is empty/missing,
       // do NOT overwrite the existing stored (encrypted) value.
-      const passwordFields = ["imap_password", "smtp_password"] as const;
+      const passwordFields = ["smtp_password"] as const;
       for (const field of passwordFields) {
         const value = formData[field];
         if (typeof value === "string" && value.length > 0) {
