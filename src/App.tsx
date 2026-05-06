@@ -52,7 +52,7 @@ function AuthGate() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/pricing" element={<Pricing />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}
