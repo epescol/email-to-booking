@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Mail, Server, Shield } from "lucide-react";
+import { Loader2, Mail, Shield } from "lucide-react";
 
 interface Props {
   hotelId: string | null;
@@ -34,7 +34,6 @@ async function callEmailSettings(action: string, payload: Record<string, unknown
 }
 
 const empty = {
-  imap_host: "", imap_port: 993, imap_user: "", imap_password: "", imap_use_ssl: true,
   smtp_host: "", smtp_port: 587, smtp_user: "", smtp_password: "", smtp_use_ssl: true,
   filter_sender_email: "",
 };
@@ -53,11 +52,6 @@ export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onO
   useEffect(() => {
     if (settings) {
       setForm({
-        imap_host: settings.imap_host || "",
-        imap_port: settings.imap_port || 993,
-        imap_user: settings.imap_user || "",
-        imap_password: "",
-        imap_use_ssl: settings.imap_use_ssl ?? true,
         smtp_host: settings.smtp_host || "",
         smtp_port: settings.smtp_port || 587,
         smtp_user: settings.smtp_user || "",
@@ -85,7 +79,7 @@ export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onO
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Impostazioni Email{hotelName ? ` — ${hotelName}` : ""}</DialogTitle>
-          <DialogDescription>Filtro mittente, server IMAP e SMTP per l'hotel selezionato</DialogDescription>
+          <DialogDescription>Filtro mittente e server SMTP per l'hotel selezionato</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
@@ -94,42 +88,6 @@ export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onO
             <div className="space-y-2">
               <Label>Email mittente filtro</Label>
               <Input type="email" value={form.filter_sender_email} onChange={(e) => setForm({ ...form, filter_sender_email: e.target.value })} placeholder="notifiche@ilmiohotel.com" />
-            </div>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 font-medium text-sm"><Server className="h-4 w-4" /> Server IMAP (Ricezione)</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Host</Label>
-                <Input value={form.imap_host} onChange={(e) => setForm({ ...form, imap_host: e.target.value })} placeholder="imap.gmail.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>Porta</Label>
-                <Input type="number" value={form.imap_port} onChange={(e) => setForm({ ...form, imap_port: +e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Utente</Label>
-                <Input value={form.imap_user} onChange={(e) => setForm({ ...form, imap_user: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input
-                  type="password"
-                  value={form.imap_password}
-                  onChange={(e) => setForm({ ...form, imap_password: e.target.value })}
-                  placeholder={settings?.has_imap_password ? "•••••••• (salvata)" : ""}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={form.imap_use_ssl} onCheckedChange={(v) => setForm({ ...form, imap_use_ssl: v })} />
-              <Label>Usa SSL</Label>
             </div>
           </section>
 
