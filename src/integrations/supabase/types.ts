@@ -280,7 +280,6 @@ export type Database = {
       hotel_email_settings: {
         Row: {
           created_at: string
-          filter_sender_email: string | null
           hotel_id: string
           id: string
           smtp_host: string | null
@@ -292,7 +291,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          filter_sender_email?: string | null
           hotel_id: string
           id?: string
           smtp_host?: string | null
@@ -304,7 +302,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          filter_sender_email?: string | null
           hotel_id?: string
           id?: string
           smtp_host?: string | null

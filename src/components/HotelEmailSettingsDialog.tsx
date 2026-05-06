@@ -6,9 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Mail, Shield } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 
 interface Props {
   hotelId: string | null;
@@ -35,7 +34,6 @@ async function callEmailSettings(action: string, payload: Record<string, unknown
 
 const empty = {
   smtp_host: "", smtp_port: 587, smtp_user: "", smtp_password: "", smtp_use_ssl: true,
-  filter_sender_email: "",
 };
 
 export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onOpenChange }: Props) {
@@ -57,7 +55,6 @@ export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onO
         smtp_user: settings.smtp_user || "",
         smtp_password: "",
         smtp_use_ssl: settings.smtp_use_ssl ?? true,
-        filter_sender_email: settings.filter_sender_email || "",
       });
     } else {
       setForm(empty);
@@ -79,20 +76,10 @@ export default function HotelEmailSettingsDialog({ hotelId, hotelName, open, onO
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Impostazioni Email{hotelName ? ` — ${hotelName}` : ""}</DialogTitle>
-          <DialogDescription>Filtro mittente e server SMTP per l'hotel selezionato</DialogDescription>
+          <DialogDescription>Server SMTP per l'hotel selezionato</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 font-medium text-sm"><Mail className="h-4 w-4" /> Filtro Email</div>
-            <div className="space-y-2">
-              <Label>Email mittente filtro</Label>
-              <Input type="email" value={form.filter_sender_email} onChange={(e) => setForm({ ...form, filter_sender_email: e.target.value })} placeholder="notifiche@ilmiohotel.com" />
-            </div>
-          </section>
-
-          <Separator />
-
           <section className="space-y-3">
             <div className="flex items-center gap-2 font-medium text-sm"><Shield className="h-4 w-4" /> Server SMTP (Invio)</div>
             <div className="grid grid-cols-2 gap-4">

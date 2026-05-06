@@ -1,0 +1,1 @@
+ALTER TABLE public.hotel_email_settings DROP COLUMN IF EXISTS filter_sender_email;
