@@ -371,13 +371,6 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <HotelEmailSettingsDialog
-        hotelId={emailSettingsHotel?.id ?? null}
-        hotelName={emailSettingsHotel?.name}
-        open={!!emailSettingsHotel}
-        onOpenChange={(o) => { if (!o) setEmailSettingsHotel(null); }}
-      />
     </div>
   );
 }
