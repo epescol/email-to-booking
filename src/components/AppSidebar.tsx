@@ -1,4 +1,4 @@
-import { LayoutDashboard, BedDouble, Euro, Users, LogOut, Mail, Languages, ScrollText, Activity } from "lucide-react";
+import { LayoutDashboard, BedDouble, Euro, Users, LogOut, Mail, Languages, ScrollText, Activity, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ const adminItems = [
   { title: "Gestione Utenti", url: "/admin/users", icon: Users },
   { title: "Template", url: "/admin/templates", icon: Mail },
   { title: "Lingue", url: "/admin/languages", icon: Languages },
+  { title: "Impostazioni Email", url: "/admin/email-settings", icon: Settings },
   { title: "Audit Log", url: "/admin/audit", icon: ScrollText },
   { title: "Edge Logs", url: "/admin/edge-logs", icon: Activity },
 ];

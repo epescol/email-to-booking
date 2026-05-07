@@ -11,8 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Plus, Pencil, Trash2, Loader2, ShieldCheck, Hotel, Mail } from "lucide-react";
-import HotelEmailSettingsDialog from "@/components/HotelEmailSettingsDialog";
+import { Users, Plus, Pencil, Trash2, Loader2, ShieldCheck, Hotel } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRoles } from "@/hooks/useProfile";
@@ -48,7 +47,7 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [dialogRole, setDialogRole] = useState<"user" | "admin">("user");
-  const [emailSettingsHotel, setEmailSettingsHotel] = useState<{ id: string; name: string } | null>(null);
+  
 
   // Form fields
   const [email, setEmail] = useState("");
@@ -189,7 +188,7 @@ export default function AdminUsers() {
 
   const isFormValid = email && (!editingUser ? password : true) && (dialogRole === "admin" || selectedLanguages.length > 0);
 
-  const renderUserTable = (userList: UserProfile[], emptyMessage: string, showEmailAction = false) => (
+  const renderUserTable = (userList: UserProfile[], emptyMessage: string) => (
     <Card>
       <CardContent className="p-0">
         {isLoading ? (
@@ -217,16 +216,6 @@ export default function AdminUsers() {
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      {showEmailAction && u.hotel_id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Impostazioni email"
-                          onClick={() => setEmailSettingsHotel({ id: u.hotel_id!, name: u.display_name || u.email || "" })}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -272,7 +261,7 @@ export default function AdminUsers() {
         </div>
 
         <TabsContent value="hotels" className="mt-4">
-          {renderUserTable(hotelUsers, "Nessun hotel trovato", true)}
+          {renderUserTable(hotelUsers, "Nessun hotel trovato")}
         </TabsContent>
 
         <TabsContent value="admins" className="mt-4">
@@ -382,13 +371,6 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <HotelEmailSettingsDialog
-        hotelId={emailSettingsHotel?.id ?? null}
-        hotelName={emailSettingsHotel?.name}
-        open={!!emailSettingsHotel}
-        onOpenChange={(o) => { if (!o) setEmailSettingsHotel(null); }}
-      />
     </div>
   );
 }
