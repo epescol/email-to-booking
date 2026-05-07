@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
         await supabaseAdmin.from("treatments").delete().eq("hotel_id", hotelId);
         await supabaseAdmin.from("price_periods").delete().eq("hotel_id", hotelId);
         await supabaseAdmin.from("hotel_languages").delete().eq("hotel_id", hotelId);
-        await supabaseAdmin.from("hotel_email_settings").delete().eq("hotel_id", hotelId);
+        
         await supabaseAdmin.from("hotels").delete().eq("id", hotelId);
         await supabaseAdmin.from("audit_log").insert({
           user_id: caller.id,
