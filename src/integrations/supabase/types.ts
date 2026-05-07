@@ -277,11 +277,13 @@ export type Database = {
         }
         Relationships: []
       }
-      hotel_email_settings: {
+      global_email_settings: {
         Row: {
           created_at: string
-          hotel_id: string
+          from_address: string | null
+          from_name: string | null
           id: string
+          singleton: boolean
           smtp_host: string | null
           smtp_password: string | null
           smtp_port: number | null
@@ -291,8 +293,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          hotel_id: string
+          from_address?: string | null
+          from_name?: string | null
           id?: string
+          singleton?: boolean
           smtp_host?: string | null
           smtp_password?: string | null
           smtp_port?: number | null
@@ -302,8 +306,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          hotel_id?: string
+          from_address?: string | null
+          from_name?: string | null
           id?: string
+          singleton?: boolean
           smtp_host?: string | null
           smtp_password?: string | null
           smtp_port?: number | null
@@ -311,15 +317,7 @@ export type Database = {
           smtp_user?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "hotel_email_settings_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: true
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       hotel_languages: {
         Row: {
@@ -401,7 +399,6 @@ export type Database = {
           address: string | null
           created_at: string
           default_template_id: string | null
-          email: string | null
           id: string
           name: string
           phone: string | null
@@ -414,7 +411,6 @@ export type Database = {
           address?: string | null
           created_at?: string
           default_template_id?: string | null
-          email?: string | null
           id?: string
           name: string
           phone?: string | null
@@ -427,7 +423,6 @@ export type Database = {
           address?: string | null
           created_at?: string
           default_template_id?: string | null
-          email?: string | null
           id?: string
           name?: string
           phone?: string | null
