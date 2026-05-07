@@ -21,7 +21,7 @@ export type AuditAction =
 
 export type AuditEntityType =
   | "booking_request"
-  | "hotel_email_settings"
+  | "global_email_settings"
   | "auth_user"
   | "price_period"
   | "room_price"
