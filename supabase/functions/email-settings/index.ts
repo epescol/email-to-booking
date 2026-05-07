@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Auth check — use getUser() to validate JWT server-side (not getClaims which only decodes)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Non autenticato" }), {
@@ -37,13 +36,11 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = user.id;
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Admin-only: only global admins can read/write SMTP/IMAP credentials.
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
-      _user_id: userId,
+      _user_id: user.id,
       _role: "admin",
     });
     if (!isAdmin) {
@@ -52,20 +49,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, hotel_id: payloadHotelId, ...payload } = await req.json();
-
-    if (!payloadHotelId || typeof payloadHotelId !== "string") {
-      return new Response(JSON.stringify({ error: "hotel_id richiesto" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const hotelId = payloadHotelId;
+    const { action, ...payload } = await req.json();
 
     if (action === "get") {
       const { data: settings } = await supabaseAdmin
-        .from("hotel_email_settings")
+        .from("global_email_settings")
         .select("*")
-        .eq("hotel_id", hotelId)
+        .eq("singleton", true)
         .maybeSingle();
 
       if (!settings) {
@@ -74,56 +64,52 @@ Deno.serve(async (req) => {
         });
       }
 
-      // SECURITY: never return decrypted passwords to the client.
       const { smtp_password, ...safe } = settings as Record<string, unknown>;
-      const result = {
+      return new Response(JSON.stringify({
         ...safe,
         smtp_password: "",
         has_smtp_password: Boolean(smtp_password),
-      };
-
-      return new Response(JSON.stringify(result), {
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === "save") {
       const formData: Record<string, unknown> = { ...payload };
+      delete formData.has_smtp_password;
+      delete formData.id;
+      delete formData.created_at;
+      delete formData.updated_at;
+      delete formData.singleton;
 
-      // Encrypt passwords before saving. If the field is empty/missing,
-      // do NOT overwrite the existing stored (encrypted) value.
-      const passwordFields = ["smtp_password"] as const;
-      for (const field of passwordFields) {
-        const value = formData[field];
-        if (typeof value === "string" && value.length > 0) {
-          const { data, error } = await supabaseAdmin.rpc("encrypt_value", {
-            _plaintext: value,
-            _key: encryptionKey,
-          });
-          if (error) throw error;
-          formData[field] = data;
-        } else {
-          // Remove from payload so update/insert doesn't blank it out
-          delete formData[field];
-        }
+      const value = formData.smtp_password;
+      if (typeof value === "string" && value.length > 0) {
+        const { data, error } = await supabaseAdmin.rpc("encrypt_value", {
+          _plaintext: value,
+          _key: encryptionKey,
+        });
+        if (error) throw error;
+        formData.smtp_password = data;
+      } else {
+        delete formData.smtp_password;
       }
 
       const { data: existing } = await supabaseAdmin
-        .from("hotel_email_settings")
+        .from("global_email_settings")
         .select("id")
-        .eq("hotel_id", hotelId)
+        .eq("singleton", true)
         .maybeSingle();
 
       if (existing) {
         const { error } = await supabaseAdmin
-          .from("hotel_email_settings")
+          .from("global_email_settings")
           .update(formData)
           .eq("id", existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabaseAdmin
-          .from("hotel_email_settings")
-          .insert({ ...formData, hotel_id: hotelId });
+          .from("global_email_settings")
+          .insert({ ...formData, singleton: true });
         if (error) throw error;
       }
 

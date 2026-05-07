@@ -83,15 +83,17 @@ serve(async (req) => {
       });
     }
 
-    const { data: settings } = await supabase
-      .from("hotel_email_settings")
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: settings } = await adminClient
+      .from("global_email_settings")
       .select("*")
-      .eq("hotel_id", profile.hotel_id)
-      .single();
+      .eq("singleton", true)
+      .maybeSingle();
 
     if (!settings?.smtp_host || !settings?.smtp_user || !settings?.smtp_password) {
       return new Response(
-        JSON.stringify({ error: "Configura le credenziali SMTP nelle Impostazioni." }),
+        JSON.stringify({ error: "Configura le credenziali SMTP globali nelle Impostazioni Email." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -100,9 +102,6 @@ serve(async (req) => {
     const encryptionKey = Deno.env.get("EMAIL_ENCRYPTION_KEY");
     let smtpPassword = settings.smtp_password;
     if (encryptionKey) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
       try {
         const { data, error } = await adminClient.rpc("decrypt_value", {
           _ciphertext: settings.smtp_password,
@@ -115,7 +114,11 @@ serve(async (req) => {
     }
 
     const xHotelRequestId = `${booking_id}`;
-    const senderDomain = settings.smtp_user.split("@")[1] || settings.smtp_host;
+    const fromAddress = settings.from_address || settings.smtp_user;
+    const senderDomain = fromAddress.split("@")[1] || settings.smtp_host;
+    const fromHeader = settings.from_name
+      ? `"${String(settings.from_name).replace(/"/g, "")}" <${fromAddress}>`
+      : fromAddress;
     const outboundMessageId = `<${crypto.randomUUID()}@${senderDomain}>`;
 
     await sendSmtpEmail({
@@ -123,7 +126,8 @@ serve(async (req) => {
       port: settings.smtp_port || 587,
       username: settings.smtp_user,
       password: smtpPassword,
-      from: settings.smtp_user,
+      from: fromAddress,
+      fromHeader,
       to: booking.email,
       subject,
       body,
