@@ -211,6 +211,7 @@ interface SmtpConfig {
   username: string;
   password: string;
   from: string;
+  fromHeader: string;
   to: string;
   subject: string;
   body: string;
@@ -336,7 +337,7 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
     const now = new Date().toUTCString();
 
     const emailData = [
-      `From: ${config.from}`,
+      `From: ${config.fromHeader}`,
       `To: ${config.to}`,
       `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(config.subject)))}?=`,
       `Date: ${now}`,
