@@ -35,8 +35,6 @@ serve(async (req) => {
 
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const defaultHotelId: string | undefined = body.hotel_id;
-
       const emails = body.emails || [body];
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -46,100 +44,79 @@ serve(async (req) => {
         level: "info",
         event: "webhook.received",
         message: `Webhook received with ${emails.length} email(s)`,
-        hotel_id: defaultHotelId || null,
-        metadata: { count: emails.length, default_hotel_id: defaultHotelId || null },
+        metadata: { count: emails.length },
       });
 
-      // Cache: per-hotel sender filter, resolved on first use
-      const filterCache = new Map<string, string | null>();
-      const loadFilter = async (hid: string): Promise<string | null> => {
-        if (filterCache.has(hid)) return filterCache.get(hid)!;
+      // Cache existing hotel IDs to validate x_hotel_id
+      const knownHotelIds = new Set<string>();
+      const isKnownHotel = async (hid: string): Promise<boolean> => {
+        if (knownHotelIds.has(hid)) return true;
         const { data } = await supabase
-          .from("hotel_email_settings")
-          .select("filter_sender_email")
-          .eq("hotel_id", hid)
+          .from("hotels")
+          .select("id")
+          .eq("id", hid)
           .maybeSingle();
-        const f = data?.filter_sender_email?.trim().toLowerCase() || null;
-        filterCache.set(hid, f);
-        return f;
-      };
-
-      // Resolve hotel_id from the recipient address (To/Delivered-To) by
-      // matching against hotel_email_settings.imap_user (or smtp_user).
-      const resolveHotelIdFromRecipient = async (
-        toField: string | undefined,
-      ): Promise<string | null> => {
-        const recipient = extractEmailFromField(toField);
-        if (!recipient) return null;
-        const { data } = await supabase
-          .from("hotel_email_settings")
-          .select("hotel_id, imap_user, smtp_user")
-          .or(`imap_user.ilike.${recipient},smtp_user.ilike.${recipient}`)
-          .limit(1)
-          .maybeSingle();
-        return data?.hotel_id ?? null;
+        if (data?.id) {
+          knownHotelIds.add(data.id);
+          return true;
+        }
+        return false;
       };
 
       let imported = 0;
       for (const email of emails) {
         const messageId = email.message_id || `gen-${Date.now()}-${imported}`;
 
-        // Resolve target hotel for THIS email
-        const recipientField = email.to || email.delivered_to || email.recipient;
-        let hotelResolutionMethod:
-          | "payload_hotel_id"
-          | "default_hotel_id"
-          | "recipient_header"
-          | "unresolved" = "unresolved";
-        let hotelId: string | null = null;
-        if (email.hotel_id) {
-          hotelId = email.hotel_id as string;
-          hotelResolutionMethod = "payload_hotel_id";
-        } else if (defaultHotelId) {
-          hotelId = defaultHotelId;
-          hotelResolutionMethod = "default_hotel_id";
-        } else {
-          const resolved = await resolveHotelIdFromRecipient(recipientField);
-          if (resolved) {
-            hotelId = resolved;
-            hotelResolutionMethod = "recipient_header";
-          }
-        }
+        // Resolve target hotel via X-Hotel-ID header (forwarded by n8n as x_hotel_id)
+        const xHotelId: string | undefined =
+          email.x_hotel_id || email.hotel_id || body.hotel_id;
 
-        if (!hotelId) {
-          console.log(
-            `Skipping email ${messageId}: cannot resolve hotel_id (recipient="${recipientField || "unknown"}")`,
-          );
+        if (!xHotelId) {
+          console.log(`Skipping email ${messageId}: missing X-Hotel-ID header`);
           await logEvent(supabase, {
             function_name: "fetch-emails",
             level: "warn",
-            event: "hotel.unresolved",
-            message: `Cannot resolve hotel for recipient ${recipientField || "unknown"}`,
+            event: "hotel.missing_x_hotel_id",
+            message: `Email scartata: header X-Hotel-ID mancante`,
             message_id: messageId,
             x_hotel_request_id: email.x_hotel_request_id || null,
             metadata: {
-              recipient: recipientField || null,
               from: email.from || null,
               subject: email.subject || null,
-              hotel_resolution_method: "unresolved",
             },
           });
           continue;
         }
 
+        if (!(await isKnownHotel(xHotelId))) {
+          console.log(`Skipping email ${messageId}: unknown hotel ${xHotelId}`);
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "warn",
+            event: "hotel.unknown_x_hotel_id",
+            message: `Email scartata: hotel ${xHotelId} non esistente`,
+            message_id: messageId,
+            x_hotel_request_id: email.x_hotel_request_id || null,
+            metadata: {
+              x_hotel_id: xHotelId,
+              from: email.from || null,
+              subject: email.subject || null,
+            },
+          });
+          continue;
+        }
+
+        const hotelId: string = xHotelId;
+
         await logEvent(supabase, {
           function_name: "fetch-emails",
           level: "info",
           event: "hotel.resolved",
-          message: `Hotel resolved via ${hotelResolutionMethod}`,
+          message: `Hotel resolved via X-Hotel-ID`,
           hotel_id: hotelId,
           message_id: messageId,
           x_hotel_request_id: email.x_hotel_request_id || null,
-          metadata: {
-            hotel_resolution_method: hotelResolutionMethod,
-            recipient: recipientField || null,
-            from: email.from || null,
-          },
+          metadata: { from: email.from || null },
         });
 
         // Check if already imported
@@ -159,25 +136,6 @@ serve(async (req) => {
             x_hotel_request_id: email.x_hotel_request_id || null,
           });
           continue;
-        }
-
-        // Filter by sender email if configured for this hotel
-        const filterSender = await loadFilter(hotelId);
-        if (filterSender) {
-          const senderEmail = extractEmailFromField(email.from);
-          if (!senderEmail || senderEmail !== filterSender) {
-            console.log(`Skipping email from non-matching sender: ${email.from || "unknown"}`);
-            await logEvent(supabase, {
-              function_name: "fetch-emails",
-              level: "info",
-              event: "email.filtered_sender",
-              message: `Sender ${email.from || "unknown"} does not match filter`,
-              hotel_id: hotelId,
-              message_id: messageId,
-              metadata: { from: email.from || null, expected: filterSender },
-            });
-            continue;
-          }
         }
 
         // Check if this is a reply to an existing conversation (always import replies)
