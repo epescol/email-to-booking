@@ -215,16 +215,16 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
     },
   });
 
-  // Check SMTP credentials configured (via secure email-settings function — only flags returned)
+  // Check SMTP credentials configured (status action: only booleans, any authenticated user)
   const { data: emailSettings } = useQuery({
-    queryKey: ["email_settings_smtp_check"],
+    queryKey: ["email_settings_smtp_status"],
     queryFn: async () => {
-      const res = await supabase.functions.invoke("email-settings", { body: { action: "get" } });
+      const res = await supabase.functions.invoke("email-settings", { body: { action: "status" } });
       if (res.error) return null;
-      return res.data as { smtp_host?: string; smtp_user?: string; has_smtp_password?: boolean } | null;
+      return res.data as { smtp_host_set?: boolean; smtp_user_set?: boolean; has_smtp_password?: boolean } | null;
     },
   });
-  const smtpConfigured = !!emailSettings?.smtp_host && !!emailSettings?.smtp_user && !!emailSettings?.has_smtp_password;
+  const smtpConfigured = !!emailSettings?.smtp_host_set && !!emailSettings?.smtp_user_set && !!emailSettings?.has_smtp_password;
 
   // Auto-select default template
   const [defaultApplied, setDefaultApplied] = useState(false);
