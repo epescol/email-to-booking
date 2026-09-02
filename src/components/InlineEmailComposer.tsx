@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,7 @@ function calculateStayPrice(
   periods: PricePeriod[],
   roomPrices: RoomPrice[],
   guests: number = 1
-): { total: number; nights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
+): { total: number; nights: number; totalNights: number; uncoveredNights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
   try {
     const startDate = parseISO(checkIn);
     const endDate = parseISO(checkOut);
@@ -164,7 +164,8 @@ function calculateStayPrice(
       subtotal: b.nights * b.pricePerNight * guests,
     }));
 
-    return { total: total * guests, nights: coveredNights, guests, breakdown };
+    const totalNights = stayDays.length;
+    return { total: total * guests, nights: coveredNights, totalNights, uncoveredNights: totalNights - coveredNights, guests, breakdown };
   } catch {
     return null;
   }
