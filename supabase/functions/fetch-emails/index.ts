@@ -232,25 +232,45 @@ serve(async (req) => {
           }
         }
 
-        // 3. Fallback: match by sender email + hotel to find existing request
+        // 3. Fallback: match by sender email + hotel, only for recent requests with matching dates
         if (!requestId && (parsed.email || email.from)) {
           const senderEmail = parsed.email || extractEmailFromField(email.from);
           if (senderEmail) {
             const { data: existingReqs } = await supabase
               .from("booking_requests")
-              .select("id")
+              .select("id, check_in, check_out, updated_at")
               .eq("hotel_id", hotelId)
               .eq("email", senderEmail)
               .in("status", ["nuova", "presa_in_carico"])
               .order("created_at", { ascending: false })
               .limit(1);
             if (existingReqs && existingReqs.length > 0) {
-              requestId = existingReqs[0].id;
+              const candidate = existingReqs[0] as {
+                id: string;
+                check_in: string | null;
+                check_out: string | null;
+                updated_at: string | null;
+              };
+              const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+              const updatedAt = candidate.updated_at ? Date.parse(candidate.updated_at) : NaN;
+              const isRecent = Number.isFinite(updatedAt) && updatedAt >= thirtyDaysAgo;
+
+              const newCheckIn = parsed.check_in || null;
+              const newCheckOut = parsed.check_out || null;
+              const noDates = !newCheckIn && !newCheckOut;
+              const sameDates =
+                newCheckIn === (candidate.check_in || null) &&
+                newCheckOut === (candidate.check_out || null);
+
+              if (isRecent && (noDates || sameDates)) {
+                requestId = candidate.id;
+              }
             }
           }
         }
 
         // Create new request only if no match found
+        let createdNewRequest = false;
         if (!requestId) {
           const { data: newReq, error: reqError } = await supabase
             .from("booking_requests")
