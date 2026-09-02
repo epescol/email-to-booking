@@ -183,6 +183,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [sending, setSending] = useState(false);
   const [confirmChildrenOpen, setConfirmChildrenOpen] = useState(false);
   const [childrenWarningRooms, setChildrenWarningRooms] = useState<string>("");
+  const [confirmUncoveredOpen, setConfirmUncoveredOpen] = useState(false);
+  const [uncoveredWarningRooms, setUncoveredWarningRooms] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
@@ -645,6 +647,15 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                       ))}
                       <p className="font-semibold text-primary">Totale: €{calc.total.toFixed(2)}</p>
                     </div>
+                  )}
+
+                  {calc && calc.uncoveredNights > 0 && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Attenzione: {calc.uncoveredNights} {calc.uncoveredNights === 1 ? "notte" : "notti"} su {calc.totalNights} non {calc.uncoveredNights === 1 ? "ha" : "hanno"} un prezzo a listino e non {calc.uncoveredNights === 1 ? "è inclusa" : "sono incluse"} nel totale.
+                      </AlertDescription>
+                    </Alert>
                   )}
 
                   {!calc && allRoomPrices && (
