@@ -301,11 +301,27 @@ serve(async (req) => {
             continue;
           }
           requestId = newReq.id;
+          createdNewRequest = true;
+        }
+
+        // Insert accommodations only for requests created in this iteration
+        if (!createdNewRequest) {
+          await logEvent(supabase, {
+            function_name: "fetch-emails",
+            level: "info",
+            event: "accommodations.skipped_existing_request",
+            message: `Accommodations not inserted: message attached to existing request ${requestId}`,
+            hotel_id: hotelId,
+            request_id: requestId,
+            message_id: messageId,
+            x_hotel_request_id: email.x_hotel_request_id || null,
+            metadata: { subject: email.subject || null },
+          });
         }
 
         // Insert accommodations: prefer structured XML data, fallback to AI-parsed
-        const structuredAccommodations = parseStructuredData(email.body);
-        if (structuredAccommodations && structuredAccommodations.length > 0 && requestId) {
+        const structuredAccommodations = createdNewRequest ? parseStructuredData(email.body) : null;
+        if (createdNewRequest && structuredAccommodations && structuredAccommodations.length > 0 && requestId) {
           // Resolve room_code to room_id
           const roomCodes = structuredAccommodations.map(a => a.room_code).filter(Boolean) as string[];
           let roomCodeMap: Record<string, string> = {};
