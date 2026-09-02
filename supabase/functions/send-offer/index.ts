@@ -113,11 +113,33 @@ serve(async (req) => {
       }
     }
 
+    // Validate recipient before opening any SMTP connection (SMTP injection guard)
+    if (!isValidEmailAddress(booking.email)) {
+      return new Response(
+        JSON.stringify({ error: "Indirizzo email del destinatario non valido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const xHotelRequestId = `${booking_id}`;
     const fromAddress = settings.from_address || settings.smtp_user;
+
+    if (!isValidEmailAddress(fromAddress)) {
+      return new Response(
+        JSON.stringify({ error: "Indirizzo mittente SMTP non valido: controlla le Impostazioni Email." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!isValidEmailAddress(settings.smtp_user)) {
+      return new Response(
+        JSON.stringify({ error: "Utente SMTP non valido: controlla le Impostazioni Email." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const senderDomain = fromAddress.split("@")[1] || settings.smtp_host;
     const fromHeader = settings.from_name
-      ? `"${String(settings.from_name).replace(/"/g, "")}" <${fromAddress}>`
+      ? `"${String(settings.from_name).replace(/[\r\n"]/g, "")}" <${fromAddress}>`
       : fromAddress;
     const outboundMessageId = `<${crypto.randomUUID()}@${senderDomain}>`;
 
