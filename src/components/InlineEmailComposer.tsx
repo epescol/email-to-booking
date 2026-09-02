@@ -771,8 +771,14 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Per inviare l'offerta devi prima configurare le credenziali SMTP nelle{" "}
-              <Link to="/settings" className="underline font-medium">Impostazioni</Link>.
+              {isAdmin ? (
+                <>
+                  Per inviare l'offerta devi prima configurare le credenziali SMTP nelle{" "}
+                  <Link to="/admin/email-settings" className="underline font-medium">Impostazioni Email</Link>.
+                </>
+              ) : (
+                "Contatta l'amministratore per configurare l'SMTP"
+              )}
             </AlertDescription>
           </Alert>
         )}
