@@ -455,6 +455,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           setBody(htmlBody);
         }
       }
+    } else if (!selectedTemplate) {
+      prevTemplateIdRef.current = "";
     }
   }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
 
