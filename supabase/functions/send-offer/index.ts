@@ -225,6 +225,18 @@ serve(async (req) => {
   }
 });
 
+// ---- Email address validation (prevents SMTP command injection) ----
+
+const EMAIL_RE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+function isValidEmailAddress(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > 254) return false;
+  if (/[\r\n\s]/.test(value)) return false;
+  if (value.includes("..")) return false;
+  return EMAIL_RE.test(value);
+}
+
 // ---- SMTP send via raw TCP/TLS ----
 
 interface SmtpConfig {
