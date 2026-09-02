@@ -294,11 +294,22 @@ async function sendSmtpEmail(config: SmtpConfig): Promise<void> {
     const ehloResp = await sendCmd(`EHLO ${config.ehloDomain}`);
     console.log("EHLO response:", ehloResp.substring(0, 200));
 
-    // STARTTLS if port 587
-    if (config.port === 587 && ehloResp.includes("STARTTLS")) {
+    // Encryption is mandatory: port 465 uses implicit TLS, any other port requires STARTTLS
+    if (config.port !== 465) {
+      if (!ehloResp.includes("STARTTLS")) {
+        throw new Error(
+          "Il server SMTP non supporta STARTTLS: invio annullato per non trasmettere le credenziali in chiaro.",
+        );
+      }
       const starttlsResp = await sendCmd("STARTTLS");
       checkResp(starttlsResp, "220", "STARTTLS");
-      conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: config.host });
+      try {
+        conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: config.host });
+      } catch (e) {
+        throw new Error(
+          `Negoziazione STARTTLS fallita: ${e instanceof Error ? e.message : String(e)}. Invio annullato.`,
+        );
+      }
       // Re-EHLO after STARTTLS
       await sendCmd(`EHLO ${config.ehloDomain}`);
     }
