@@ -432,13 +432,18 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   // Store the raw template body (before email_body substitution) for live preview
   const [rawTemplateBody, setRawTemplateBody] = useState("");
+  // Track the previously applied template id so free text resets only on real template changes
+  const prevTemplateIdRef = useRef<string>("");
 
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
-        setEmailBodyContent(""); // Reset free text on template change
+        if (prevTemplateIdRef.current !== selectedTemplate) {
+          setEmailBodyContent(""); // Reset free text only on template change
+        }
+        prevTemplateIdRef.current = selectedTemplate;
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
