@@ -484,6 +484,20 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       return;
     }
 
+    // Check if any room has uncovered nights and no manual price (manual price prevails)
+    const roomsWithUncoveredNights = selectedRooms.filter(sr => {
+      const manual = parseFloat(sr.manualPrice);
+      if (!isNaN(manual) && manual > 0) return false;
+      const calc = roomCalculations[sr.roomId];
+      return !!calc && calc.uncoveredNights > 0;
+    });
+    if (roomsWithUncoveredNights.length > 0) {
+      const roomNames = roomsWithUncoveredNights.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
+      setUncoveredWarningRooms(roomNames);
+      setConfirmUncoveredOpen(true);
+      return;
+    }
+
     await performSend();
   };
 
@@ -834,6 +848,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
             <AlertDialogAction
               onClick={() => {
                 setConfirmChildrenOpen(false);
+                performSend();
+              }}
+            >
+              Invia comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmUncoveredOpen} onOpenChange={setConfirmUncoveredOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Notti senza prezzo a listino</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le seguenti camere hanno notti non coperte dal listino, escluse dal totale: {uncoveredWarningRooms}.
+              <br /><br />
+              Vuoi inviare comunque l'offerta?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmUncoveredOpen(false);
                 performSend();
               }}
             >
