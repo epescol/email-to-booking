@@ -1,1 +1,13 @@
 project_id = "bptqhzezfmfoqqjpjnti"
+
+[functions.fetch-emails]
+verify_jwt = false
+
+[functions.send-offer]
+verify_jwt = true
+
+[functions.email-settings]
+verify_jwt = true
+
+[functions.admin-users]
+verify_jwt = true
