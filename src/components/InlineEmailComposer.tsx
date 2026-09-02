@@ -169,6 +169,9 @@ function calculateStayPrice(
 }
 
 export function InlineEmailComposer({ booking, accommodations, onSent }: InlineEmailComposerProps) {
+  const { user } = useAuth();
+  const { data: roles } = useUserRoles(user?.id);
+  const isAdmin = !!roles?.some(r => r.role === "admin");
   const [autoSelected, setAutoSelected] = useState(false);
 
   const [subject, setSubject] = useState("");
