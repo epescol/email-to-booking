@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,7 @@ function calculateStayPrice(
   periods: PricePeriod[],
   roomPrices: RoomPrice[],
   guests: number = 1
-): { total: number; nights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
+): { total: number; nights: number; totalNights: number; uncoveredNights: number; guests: number; breakdown: { period: string; nights: number; pricePerNight: number; subtotal: number }[] } | null {
   try {
     const startDate = parseISO(checkIn);
     const endDate = parseISO(checkOut);
@@ -164,7 +164,8 @@ function calculateStayPrice(
       subtotal: b.nights * b.pricePerNight * guests,
     }));
 
-    return { total: total * guests, nights: coveredNights, guests, breakdown };
+    const totalNights = stayDays.length;
+    return { total: total * guests, nights: coveredNights, totalNights, uncoveredNights: totalNights - coveredNights, guests, breakdown };
   } catch {
     return null;
   }
@@ -182,6 +183,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
   const [sending, setSending] = useState(false);
   const [confirmChildrenOpen, setConfirmChildrenOpen] = useState(false);
   const [childrenWarningRooms, setChildrenWarningRooms] = useState<string>("");
+  const [confirmUncoveredOpen, setConfirmUncoveredOpen] = useState(false);
+  const [uncoveredWarningRooms, setUncoveredWarningRooms] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoom[]>([]);
   const [priceOpen, setPriceOpen] = useState(false);
@@ -431,13 +434,18 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
 
   // Store the raw template body (before email_body substitution) for live preview
   const [rawTemplateBody, setRawTemplateBody] = useState("");
+  // Track the previously applied template id so free text resets only on real template changes
+  const prevTemplateIdRef = useRef<string>("");
 
   // Apply template
   useEffect(() => {
     if (selectedTemplate && templates) {
       const tpl = templates.find((t) => t.id === selectedTemplate);
       if (tpl) {
-        setEmailBodyContent(""); // Reset free text on template change
+        if (prevTemplateIdRef.current !== selectedTemplate) {
+          setEmailBodyContent(""); // Reset free text only on template change
+        }
+        prevTemplateIdRef.current = selectedTemplate;
         const priceStr = displayPrice ? `€${displayPrice}` : "[PREZZO]";
         setSubject(applyTemplate(tpl.subject_template || "", booking, priceStr, roomsPreviewHtml));
         const htmlBody = applyTemplate(tpl.body_template, booking, priceStr, roomsPreviewHtml);
@@ -449,6 +457,8 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
           setBody(htmlBody);
         }
       }
+    } else if (!selectedTemplate) {
+      prevTemplateIdRef.current = "";
     }
   }, [selectedTemplate, templates, booking, displayPrice, roomsPreviewHtml]);
 
@@ -471,6 +481,20 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
       const roomNames = roomsWithChildrenNoPrice.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
       setChildrenWarningRooms(roomNames);
       setConfirmChildrenOpen(true);
+      return;
+    }
+
+    // Check if any room has uncovered nights and no manual price (manual price prevails)
+    const roomsWithUncoveredNights = selectedRooms.filter(sr => {
+      const manual = parseFloat(sr.manualPrice);
+      if (!isNaN(manual) && manual > 0) return false;
+      const calc = roomCalculations[sr.roomId];
+      return !!calc && calc.uncoveredNights > 0;
+    });
+    if (roomsWithUncoveredNights.length > 0) {
+      const roomNames = roomsWithUncoveredNights.map(sr => rooms?.find(r => r.id === sr.roomId)?.name || "Camera").join(", ");
+      setUncoveredWarningRooms(roomNames);
+      setConfirmUncoveredOpen(true);
       return;
     }
 
@@ -637,6 +661,15 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
                       ))}
                       <p className="font-semibold text-primary">Totale: €{calc.total.toFixed(2)}</p>
                     </div>
+                  )}
+
+                  {calc && calc.uncoveredNights > 0 && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        Attenzione: {calc.uncoveredNights} {calc.uncoveredNights === 1 ? "notte" : "notti"} su {calc.totalNights} non {calc.uncoveredNights === 1 ? "ha" : "hanno"} un prezzo a listino e non {calc.uncoveredNights === 1 ? "è inclusa" : "sono incluse"} nel totale.
+                      </AlertDescription>
+                    </Alert>
                   )}
 
                   {!calc && allRoomPrices && (
@@ -815,6 +848,30 @@ export function InlineEmailComposer({ booking, accommodations, onSent }: InlineE
             <AlertDialogAction
               onClick={() => {
                 setConfirmChildrenOpen(false);
+                performSend();
+              }}
+            >
+              Invia comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmUncoveredOpen} onOpenChange={setConfirmUncoveredOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Notti senza prezzo a listino</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le seguenti camere hanno notti non coperte dal listino, escluse dal totale: {uncoveredWarningRooms}.
+              <br /><br />
+              Vuoi inviare comunque l'offerta?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmUncoveredOpen(false);
                 performSend();
               }}
             >
