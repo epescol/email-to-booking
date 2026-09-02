@@ -13,6 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRoles } from "@/hooks/useProfile";
 import {
   AlertDialog,
   AlertDialogAction,
