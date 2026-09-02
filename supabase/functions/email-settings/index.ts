@@ -39,6 +39,25 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    const { action, ...payload } = await req.json();
+
+    // "status": available to any authenticated user, returns only presence booleans
+    if (action === "status") {
+      const { data: settings } = await supabaseAdmin
+        .from("global_email_settings")
+        .select("smtp_host, smtp_user, smtp_password")
+        .eq("singleton", true)
+        .maybeSingle();
+
+      return new Response(JSON.stringify({
+        smtp_host_set: Boolean(settings?.smtp_host),
+        smtp_user_set: Boolean(settings?.smtp_user),
+        has_smtp_password: Boolean(settings?.smtp_password),
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
       _user_id: user.id,
       _role: "admin",
@@ -48,8 +67,6 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const { action, ...payload } = await req.json();
 
     if (action === "get") {
       const { data: settings } = await supabaseAdmin
