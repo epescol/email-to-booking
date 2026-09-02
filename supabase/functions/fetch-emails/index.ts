@@ -369,7 +369,7 @@ serve(async (req) => {
               notes: acc.notes || null,
             });
           }
-        } else if (parsed.accommodations && parsed.accommodations.length > 0 && requestId) {
+        } else if (createdNewRequest && parsed.accommodations && parsed.accommodations.length > 0 && requestId) {
           for (const acc of parsed.accommodations) {
             await supabase.from("booking_accommodations").insert({
               request_id: requestId,
